@@ -30,6 +30,33 @@ func TestRecovererTurnsAPanicIntoFiveHundred(t *testing.T) {
 	}
 }
 
+func TestRecovererComposedWithRequestIDIncludesTheIDInErrorResponse(t *testing.T) {
+	var buf bytes.Buffer
+	h := recoverer(obs.NewLogger(&buf))(requestID(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic("kaputt")
+	})))
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/connections", nil))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", rec.Code)
+	}
+
+	headerID := rec.Header().Get("X-Request-Id")
+	if headerID == "" {
+		t.Fatal("no X-Request-Id header in response")
+	}
+
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if body["request_id"] != headerID {
+		t.Errorf("body request_id = %q, header = %q", body["request_id"], headerID)
+	}
+}
+
 func TestRequestIDIsGeneratedAndEchoed(t *testing.T) {
 	var seen string
 	h := requestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -112,8 +139,11 @@ func TestChaosMiddlewareDelaysAndFails(t *testing.T) {
 
 func TestChaosMiddlewareSparesAdminAndHealthz(t *testing.T) {
 	st := chaos.NewMemoryStore()
+	ctx := context.Background()
+
+	// Test error-rate exemption
 	rate := 1.0
-	if _, err := st.Apply(context.Background(), chaos.Patch{HTTP: &chaos.HTTPPatch{ErrorRate: &rate}}); err != nil {
+	if _, err := st.Apply(ctx, chaos.Patch{HTTP: &chaos.HTTPPatch{ErrorRate: &rate}}); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
 
@@ -124,8 +154,49 @@ func TestChaosMiddlewareSparesAdminAndHealthz(t *testing.T) {
 		}))
 		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil))
 		if !reached {
-			t.Errorf("%s was hit by the chaos middleware, which would lock the operator out", path)
+			t.Errorf("%s was hit by the chaos middleware error-rate, which would lock the operator out", path)
 		}
+	}
+
+	// Test latency exemption: set a large latency and verify exempt paths return promptly
+	latencyMS := 100
+	zeroRate := 0.0
+	if _, err := st.Apply(ctx, chaos.Patch{HTTP: &chaos.HTTPPatch{LatencyMS: &latencyMS, ErrorRate: &zeroRate}}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	for _, path := range []string{"/admin/chaos", "/healthz"} {
+		reached := false
+		start := time.Now()
+		h := chaosMiddleware(st, func() float64 { return 0 })(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reached = true
+		}))
+		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil))
+		elapsed := time.Since(start)
+
+		if !reached {
+			t.Errorf("%s was hit by the chaos middleware latency, which would lock the operator out", path)
+		}
+		if elapsed >= 50*time.Millisecond {
+			t.Errorf("%s took %v, seems to have been delayed despite exemption", path, elapsed)
+		}
+	}
+
+	// Verify that non-exempt paths do get delayed
+	nonExempt := "/bookings"
+	reached := false
+	start := time.Now()
+	h := chaosMiddleware(st, func() float64 { return 0 })(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached = true
+	}))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, nonExempt, nil))
+	elapsed := time.Since(start)
+
+	if !reached {
+		t.Error("non-exempt path should have reached the handler")
+	}
+	if elapsed < 100*time.Millisecond {
+		t.Errorf("%s took %v, should have been delayed by at least 100ms", nonExempt, elapsed)
 	}
 }
 

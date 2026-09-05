@@ -50,7 +50,7 @@ func recoverer(l *slog.Logger) func(http.Handler) http.Handler {
 			defer func() {
 				if v := recover(); v != nil {
 					l.Error("panic im Handler", "panic", v, "path", r.URL.Path,
-						"request_id", requestIDFrom(r.Context()))
+						"request_id", requestIDFor(w, r))
 					writeError(w, r, http.StatusInternalServerError, "interner Fehler")
 				}
 			}()

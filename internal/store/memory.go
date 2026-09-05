@@ -25,7 +25,7 @@ func NewMemoryStore(now time.Time) *MemoryStore {
 		connections: domain.Connections(),
 		departures:  map[string]domain.Departure{},
 		bookings:    map[string]domain.Booking{},
-		now:         func() time.Time { return now },
+		now:         func() time.Time { return time.Now().UTC() },
 	}
 	for _, d := range domain.Departures(now) {
 		s.departures[d.ID] = d

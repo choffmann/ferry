@@ -15,8 +15,8 @@ type ResourcesState struct {
 	MemoryLeakMBPerMin int `json:"memory_leak_mb_per_min"`
 }
 
-// BookingState is read by no switch in v0.1.0. It is declared now because the
-// schema may only grow, and the overbooking switch lands in it later.
+// AllowOverbooking is the only chaos switch affecting domain logic rather than
+// HTTP responses; it travels through BookOptions to skip the capacity rule in CheckSeats.
 type BookingState struct {
 	AllowOverbooking bool `json:"allow_overbooking"`
 }

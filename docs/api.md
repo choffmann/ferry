@@ -26,8 +26,8 @@ Liefert alle Verbindungen.
 
 ## `GET /connections/{id}/departures`
 
-Liefert die Abfahrten einer Verbindung, aufsteigend nach Zeit. Der Fahrplan reicht
-sieben Tage in die Zukunft.
+Liefert die Abfahrten einer Verbindung, aufsteigend nach Zeit. Der Fahrplan
+umfasst sieben Tage ab dem aktuellen Tag.
 
 Parameter `from`, optional: Zeitstempel nach RFC3339. Abfahrten davor werden
 weggelassen. Ein unlesbarer Wert ergibt `400`.

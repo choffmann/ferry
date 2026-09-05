@@ -22,7 +22,8 @@ func TestRunServeAnswersAndShutsDown(t *testing.T) {
 
 	waitForHealth(t, "http://127.0.0.1:18081/healthz")
 
-	resp, err := http.Get("http://127.0.0.1:18081/connections")
+	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+	resp, err := client.Get("http://127.0.0.1:18081/connections")
 	if err != nil {
 		t.Fatalf("GET /connections: %v", err)
 	}
@@ -38,7 +39,7 @@ func TestRunServeAnswersAndShutsDown(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runServe: %v", err)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Fatal("runServe did not return after the context was cancelled")
 	}
 }

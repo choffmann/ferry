@@ -84,6 +84,22 @@ func TestPostChaosRejectsBrokenJSON(t *testing.T) {
 	}
 }
 
+func TestPostChaosRejectsAMisspelledField(t *testing.T) {
+	h, _ := newTestServer(t)
+
+	before := withToken(t, h, http.MethodGet, "/admin/chaos", "", "test-token")
+
+	rec := withToken(t, h, http.MethodPost, "/admin/chaos", `{"http":{"latency":500}}`, "test-token")
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+
+	after := withToken(t, h, http.MethodGet, "/admin/chaos", "", "test-token")
+	if after.Body.String() != before.Body.String() {
+		t.Errorf("state changed after a rejected patch: before %s, after %s", before.Body, after.Body)
+	}
+}
+
 func TestDeleteChaosResets(t *testing.T) {
 	h, _ := newTestServer(t)
 

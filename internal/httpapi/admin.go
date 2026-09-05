@@ -36,7 +36,9 @@ func (d Deps) postChaos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var p chaos.Patch
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&p); err != nil {
 		writeError(w, r, http.StatusBadRequest, "Körper ist kein gültiges JSON")
 		return
 	}

@@ -21,6 +21,8 @@ func main() {
 	switch os.Args[1] {
 	case "serve":
 		err = runServe(ctx, os.Args[2:], os.Getenv, os.Stdout)
+	case "load":
+		err = runLoad(ctx, os.Args[2:], os.Stdout)
 	default:
 		usage()
 		os.Exit(2)
@@ -35,5 +37,6 @@ func usage() {
 	fmt.Fprint(os.Stderr, `ferry <befehl>
 
   serve   startet den API-Server
+  load    erzeugt Last gegen eine laufende Instanz
 `)
 }

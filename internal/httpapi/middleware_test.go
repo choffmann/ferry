@@ -141,7 +141,6 @@ func TestChaosMiddlewareSparesAdminAndHealthz(t *testing.T) {
 	st := chaos.NewMemoryStore()
 	ctx := context.Background()
 
-	// Test error-rate exemption
 	rate := 1.0
 	if _, err := st.Apply(ctx, chaos.Patch{HTTP: &chaos.HTTPPatch{ErrorRate: &rate}}); err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -158,7 +157,6 @@ func TestChaosMiddlewareSparesAdminAndHealthz(t *testing.T) {
 		}
 	}
 
-	// Test latency exemption: set a large latency and verify exempt paths return promptly
 	latencyMS := 100
 	zeroRate := 0.0
 	if _, err := st.Apply(ctx, chaos.Patch{HTTP: &chaos.HTTPPatch{LatencyMS: &latencyMS, ErrorRate: &zeroRate}}); err != nil {
@@ -182,7 +180,6 @@ func TestChaosMiddlewareSparesAdminAndHealthz(t *testing.T) {
 		}
 	}
 
-	// Verify that non-exempt paths do get delayed
 	nonExempt := "/bookings"
 	reached := false
 	start := time.Now()

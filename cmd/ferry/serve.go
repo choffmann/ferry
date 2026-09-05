@@ -76,7 +76,9 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 	case err := <-serveErr:
 		return err
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// Must clear net/http's own 5s window before a freshly-dialed idle
+		// connection counts as closeable, or Shutdown can stall the full grace period.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		logger.Info("ferry hält an")
 		return srv.Shutdown(shutdownCtx)

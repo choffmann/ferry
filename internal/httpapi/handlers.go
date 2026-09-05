@@ -55,7 +55,7 @@ func (d Deps) createBooking(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusInternalServerError, "Chaos-Zustand nicht lesbar")
 		return
 	}
-	opts := domain.BookOptions{AllowOverbooking: state.Booking.AllowOverbooking}
+	opts := domain.BookOptions{AllowOverbooking: chaos.AllowOverbooking(state)}
 
 	b, err := d.Repo.Book(r.Context(), req, opts)
 	switch {

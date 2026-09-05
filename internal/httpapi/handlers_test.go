@@ -157,6 +157,32 @@ func TestAFullDepartureAnswersWithConflict(t *testing.T) {
 	}
 }
 
+func TestOverbookingSwitchAllowsBookingPastCapacity(t *testing.T) {
+	h, _ := newTestServer(t)
+	id := "FL-SO-2026-09-29T06"
+
+	for i := 0; i < domain.SeatsPerDeparture; i++ {
+		rec := do(t, h, http.MethodPost, "/bookings", `{"departure_id":"`+id+`","passengers":1}`)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("booking %d: status %d, body %s", i, rec.Code, rec.Body)
+		}
+	}
+
+	body := `{"departure_id":"` + id + `","passengers":1}`
+	if rec := do(t, h, http.MethodPost, "/bookings", body); rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409 before the switch is flipped", rec.Code)
+	}
+
+	patch := withToken(t, h, http.MethodPost, "/admin/chaos", `{"booking":{"allow_overbooking":true}}`, "test-token")
+	if patch.Code != http.StatusOK {
+		t.Fatalf("POST /admin/chaos: status %d, body %s", patch.Code, patch.Body)
+	}
+
+	if rec := do(t, h, http.MethodPost, "/bookings", body); rec.Code != http.StatusCreated {
+		t.Errorf("status = %d, want 201 after allow_overbooking was switched on", rec.Code)
+	}
+}
+
 func TestUnknownBookingIsNotFound(t *testing.T) {
 	h, _ := newTestServer(t)
 	if rec := do(t, h, http.MethodGet, "/bookings/gibtsnicht", ""); rec.Code != http.StatusNotFound {

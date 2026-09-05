@@ -36,7 +36,7 @@ func TestFailWithFallsBackToFiveHundred(t *testing.T) {
 	}
 }
 
-func TestReadyOnlyAcceptsOk(t *testing.T) {
+func TestOnlyFailMakesItUnready(t *testing.T) {
 	for value, want := range map[string]bool{"ok": true, "fail": false, "": true} {
 		s := DefaultState()
 		s.Readiness = value

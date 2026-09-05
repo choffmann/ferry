@@ -31,6 +31,16 @@ alle nötigen Werkzeuge mitbringt: `nix develop`, oder automatisch per `direnv` 
 mitgelieferte `.envrc`. Sie wächst mit den Releases mit. Nötig ist sie nicht,
 `check-env.sh` bleibt der Maßstab.
 
+## Bauen und starten
+
+```sh
+go build -o ferry ./cmd/ferry
+./ferry serve
+```
+
+Die API ist in `docs/api.md` beschrieben, die Chaos-Schnittstelle in
+`docs/chaos.md`.
+
 ## Referenzlösungen
 
 Zu jedem Block gehört ein Branch `solutions/block-NN`, der nach dem Termin erscheint.

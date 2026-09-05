@@ -34,6 +34,10 @@ func NewRouter(d Deps) http.Handler {
 	mux.HandleFunc("GET /readyz", d.readyz)
 	mux.HandleFunc("GET /version", d.version)
 
+	mux.HandleFunc("GET /admin/chaos", d.getChaos)
+	mux.HandleFunc("POST /admin/chaos", d.postChaos)
+	mux.HandleFunc("DELETE /admin/chaos", d.deleteChaos)
+
 	var h http.Handler = mux
 	h = chaosMiddleware(d.Chaos, d.Draw)(h)
 	h = logging(d.Logger)(h)

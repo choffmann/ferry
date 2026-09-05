@@ -107,8 +107,29 @@ func oneRound(ctx context.Context, o Options, c domain.Connection, record func(i
 		return
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
+
+	var b domain.Booking
+	if resp.StatusCode == http.StatusCreated {
+		err = json.NewDecoder(resp.Body).Decode(&b)
+	} else {
+		io.Copy(io.Discard, resp.Body)
+	}
 	record(resp.StatusCode)
+	if err != nil || resp.StatusCode != http.StatusCreated || rand.IntN(4) != 0 {
+		return
+	}
+
+	readReq, err := http.NewRequestWithContext(ctx, http.MethodGet, o.Target+"/bookings/"+b.ID, nil)
+	if err != nil {
+		return
+	}
+	readResp, err := o.Client.Do(readReq)
+	if err != nil {
+		return
+	}
+	defer readResp.Body.Close()
+	io.Copy(io.Discard, readResp.Body)
+	record(readResp.StatusCode)
 }
 
 func fetchConnections(ctx context.Context, o Options) ([]domain.Connection, error) {

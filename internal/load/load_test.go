@@ -12,7 +12,7 @@ import (
 	"github.com/choffmann/ferry/internal/domain"
 )
 
-func fakeAPI(t *testing.T, bookings *atomic.Int64) *httptest.Server {
+func fakeAPI(t *testing.T, bookings, bookingReads *atomic.Int64) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /connections", func(w http.ResponseWriter, r *http.Request) {
@@ -31,12 +31,16 @@ func fakeAPI(t *testing.T, bookings *atomic.Int64) *httptest.Server {
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(domain.Booking{ID: "bk-000001", Status: domain.StatusConfirmed})
 	})
+	mux.HandleFunc("GET /bookings/{id}", func(w http.ResponseWriter, r *http.Request) {
+		bookingReads.Add(1)
+		json.NewEncoder(w).Encode(domain.Booking{ID: r.PathValue("id"), Status: domain.StatusConfirmed})
+	})
 	return httptest.NewServer(mux)
 }
 
 func TestRunBooksAndCountsByStatus(t *testing.T) {
-	var bookings atomic.Int64
-	srv := fakeAPI(t, &bookings)
+	var bookings, bookingReads atomic.Int64
+	srv := fakeAPI(t, &bookings, &bookingReads)
 	defer srv.Close()
 
 	res, err := Run(context.Background(), Options{
@@ -60,8 +64,8 @@ func TestRunBooksAndCountsByStatus(t *testing.T) {
 }
 
 func TestRunStopsOnContextCancel(t *testing.T) {
-	var bookings atomic.Int64
-	srv := fakeAPI(t, &bookings)
+	var bookings, bookingReads atomic.Int64
+	srv := fakeAPI(t, &bookings, &bookingReads)
 	defer srv.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -87,5 +91,27 @@ func TestRunStopsOnContextCancel(t *testing.T) {
 func TestRunRejectsAnEmptyTarget(t *testing.T) {
 	if _, err := Run(context.Background(), Options{Rate: 1, Duration: time.Second}); err == nil {
 		t.Error("Run without a target returned no error")
+	}
+}
+
+func TestRunReadsBookingsBack(t *testing.T) {
+	var bookings, bookingReads atomic.Int64
+	srv := fakeAPI(t, &bookings, &bookingReads)
+	defer srv.Close()
+
+	_, err := Run(context.Background(), Options{
+		Target:   srv.URL,
+		Rate:     200,
+		Duration: time.Second,
+		Client:   srv.Client(),
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if bookings.Load() == 0 {
+		t.Fatal("no booking was attempted")
+	}
+	if bookingReads.Load() == 0 {
+		t.Errorf("no booking was ever read back out of %d bookings", bookings.Load())
 	}
 }

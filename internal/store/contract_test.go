@@ -158,6 +158,32 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 		}
 	})
 
+	t.Run("bookings are stamped with the current time, not the seed time", func(t *testing.T) {
+		r := newRepo(seedTime())
+		d := firstDeparture(t, r)
+
+		first, err := r.Book(context.Background(),
+			domain.BookingRequest{DepartureID: d.ID, Passengers: 1}, domain.BookOptions{})
+		if err != nil {
+			t.Fatalf("Book: %v", err)
+		}
+
+		time.Sleep(5 * time.Millisecond)
+
+		second, err := r.Book(context.Background(),
+			domain.BookingRequest{DepartureID: d.ID, Passengers: 1}, domain.BookOptions{})
+		if err != nil {
+			t.Fatalf("Book: %v", err)
+		}
+
+		if first.CreatedAt.Equal(second.CreatedAt) {
+			t.Errorf("both bookings have CreatedAt %v", first.CreatedAt)
+		}
+		if first.CreatedAt.Equal(seedTime()) || second.CreatedAt.Equal(seedTime()) {
+			t.Error("CreatedAt equals the seed time, want the current time")
+		}
+	})
+
 	// The reason Book is one method instead of read, check, write. Splitting it
 	// makes this test red.
 	t.Run("concurrent bookings never exceed the capacity", func(t *testing.T) {

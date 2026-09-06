@@ -49,9 +49,9 @@ func recoverer(l *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if v := recover(); v != nil {
-					l.Error("panic im Handler", "panic", v, "path", r.URL.Path,
+					l.Error("panic in handler", "panic", v, "path", r.URL.Path,
 						"request_id", requestIDFor(w, r))
-					writeError(w, r, http.StatusInternalServerError, "interner Fehler")
+					writeError(w, r, http.StatusInternalServerError, "internal error")
 				}
 			}()
 			next.ServeHTTP(w, r)
@@ -114,7 +114,7 @@ func chaosMiddleware(store chaos.Store, draw func() float64) func(http.Handler) 
 				}
 			}
 			if status, fail := chaos.FailWith(s, draw()); fail {
-				writeError(w, r, status, "künstlicher Fehler aus der Chaos-Schnittstelle")
+				writeError(w, r, status, "artificial error from the chaos interface")
 				return
 			}
 

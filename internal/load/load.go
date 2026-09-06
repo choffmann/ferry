@@ -29,7 +29,7 @@ type Result struct {
 
 func Run(ctx context.Context, o Options) (Result, error) {
 	if o.Target == "" {
-		return Result{}, errors.New("kein Ziel angegeben")
+		return Result{}, errors.New("no target given")
 	}
 	if o.Rate < 1 {
 		o.Rate = 1
@@ -46,7 +46,7 @@ func Run(ctx context.Context, o Options) (Result, error) {
 		return Result{}, err
 	}
 	if len(conns) == 0 {
-		return Result{}, errors.New("das Ziel meldet keine Verbindungen")
+		return Result{}, errors.New("the target reports no connections")
 	}
 
 	res := Result{ByStatus: map[int]int{}}
@@ -145,7 +145,7 @@ func fetchConnections(ctx context.Context, o Options) ([]domain.Connection, erro
 
 	var out []domain.Connection
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("Antwort von %s/connections nicht lesbar: %w", o.Target, err)
+		return nil, fmt.Errorf("response from %s/connections not readable: %w", o.Target, err)
 	}
 	return out, nil
 }

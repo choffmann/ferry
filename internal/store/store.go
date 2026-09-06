@@ -8,7 +8,7 @@ import (
 	"github.com/choffmann/ferry/internal/domain"
 )
 
-var ErrNotFound = errors.New("nicht gefunden")
+var ErrNotFound = errors.New("not found")
 
 // Repository is the persistence port. Book is a single method on purpose: the
 // seat accounting has to happen inside one critical section, otherwise two

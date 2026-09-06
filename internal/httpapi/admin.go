@@ -13,7 +13,7 @@ func (d Deps) authorized(w http.ResponseWriter, r *http.Request) bool {
 	header := r.Header.Get("Authorization")
 	token := strings.TrimPrefix(header, "Bearer ")
 	if token == header || subtle.ConstantTimeCompare([]byte(token), []byte(d.AdminToken)) != 1 {
-		writeError(w, r, http.StatusUnauthorized, "gültiges Bearer-Token erforderlich")
+		writeError(w, r, http.StatusUnauthorized, "valid bearer token required")
 		return false
 	}
 	return true
@@ -25,7 +25,7 @@ func (d Deps) getChaos(w http.ResponseWriter, r *http.Request) {
 	}
 	s, err := d.Chaos.Get(r.Context())
 	if err != nil {
-		writeError(w, r, http.StatusInternalServerError, "Chaos-Zustand nicht lesbar")
+		writeError(w, r, http.StatusInternalServerError, "chaos state not readable")
 		return
 	}
 	writeJSON(w, http.StatusOK, s)
@@ -39,12 +39,12 @@ func (d Deps) postChaos(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&p); err != nil {
-		writeError(w, r, http.StatusBadRequest, "Körper ist kein gültiges JSON")
+		writeError(w, r, http.StatusBadRequest, "request body is not valid JSON")
 		return
 	}
 	s, err := d.Chaos.Apply(r.Context(), p)
 	if err != nil {
-		writeError(w, r, http.StatusInternalServerError, "Chaos-Zustand nicht setzbar")
+		writeError(w, r, http.StatusInternalServerError, "chaos state could not be set")
 		return
 	}
 	writeJSON(w, http.StatusOK, s)
@@ -56,7 +56,7 @@ func (d Deps) deleteChaos(w http.ResponseWriter, r *http.Request) {
 	}
 	s, err := d.Chaos.Reset(r.Context())
 	if err != nil {
-		writeError(w, r, http.StatusInternalServerError, "Chaos-Zustand nicht zurücksetzbar")
+		writeError(w, r, http.StatusInternalServerError, "chaos state could not be reset")
 		return
 	}
 	writeJSON(w, http.StatusOK, s)

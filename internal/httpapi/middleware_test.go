@@ -202,13 +202,13 @@ func TestWriteErrorCarriesTheRequestID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/bookings/nope", nil)
 	req = req.WithContext(context.WithValue(req.Context(), requestIDKey{}, "abc123"))
 
-	writeError(rec, req, http.StatusNotFound, "Buchung nicht gefunden")
+	writeError(rec, req, http.StatusNotFound, "booking not found")
 
 	var body map[string]string
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("body is not JSON: %v", err)
 	}
-	if body["error"] != "Buchung nicht gefunden" {
+	if body["error"] != "booking not found" {
 		t.Errorf("error = %q", body["error"])
 	}
 	if body["request_id"] != "abc123" {

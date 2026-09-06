@@ -14,9 +14,9 @@ import (
 func runLoad(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("load", flag.ContinueOnError)
 	fs.SetOutput(stdout)
-	target := fs.String("target", "http://localhost:8080", "Adresse der laufenden Instanz")
-	rate := fs.Int("rate", 5, "Runden pro Sekunde")
-	duration := fs.Duration("duration", time.Minute, "Laufzeit")
+	target := fs.String("target", "http://localhost:8080", "address of the running instance")
+	rate := fs.Int("rate", 5, "rounds per second")
+	duration := fs.Duration("duration", time.Minute, "how long to run")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func runLoad(ctx context.Context, args []string, stdout io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(stdout, "%d Anfragen\n", res.Requests)
+	fmt.Fprintf(stdout, "%d requests\n", res.Requests)
 	statuses := make([]int, 0, len(res.ByStatus))
 	for s := range res.ByStatus {
 		statuses = append(statuses, s)

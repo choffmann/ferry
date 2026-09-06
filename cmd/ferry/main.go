@@ -28,15 +28,15 @@ func main() {
 		os.Exit(2)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Fehler:", err)
+		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `ferry <befehl>
+	fmt.Fprint(os.Stderr, `ferry <command>
 
-  serve   startet den API-Server
-  load    erzeugt Last gegen eine laufende Instanz
+  serve   starts the API server
+  load    generates load against a running instance
 `)
 }

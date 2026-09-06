@@ -7,7 +7,11 @@ import (
 	"time"
 )
 
-const bytesPerMB = 1 << 20
+const (
+	bytesPerMB = 1 << 20
+
+	msPerMinute = int64(time.Minute / time.Millisecond)
+)
 
 var pageSize = os.Getpagesize()
 
@@ -19,6 +23,9 @@ type Leaker struct {
 
 	mu     sync.Mutex
 	blocks [][]byte
+	// owed carries the fraction of a megabyte a tick did not allocate yet, in
+	// megabyte-milliseconds, so the rate stays exact instead of being truncated.
+	owed int64
 }
 
 func NewLeaker(store Store, interval time.Duration) *Leaker {
@@ -55,13 +62,13 @@ func (l *Leaker) tick(ctx context.Context) {
 
 	if s.Resources.MemoryLeakMBPerMin <= 0 {
 		l.blocks = nil
+		l.owed = 0
 		return
 	}
 
-	perTick := int(float64(s.Resources.MemoryLeakMBPerMin) * l.interval.Seconds() / 60.0)
-	if perTick < 1 {
-		perTick = 1
-	}
+	l.owed += int64(s.Resources.MemoryLeakMBPerMin) * l.interval.Milliseconds()
+	perTick := int(l.owed / msPerMinute)
+	l.owed -= int64(perTick) * msPerMinute
 	for i := 0; i < perTick; i++ {
 		block := make([]byte, bytesPerMB)
 		// Go serves a block this size from freshly mapped zero pages and skips

@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	ErrSoldOut        = errors.New("keine freien Plätze mehr")
-	ErrInvalidRequest = errors.New("ungültige Buchungsanfrage")
+	ErrSoldOut        = errors.New("no seats left")
+	ErrInvalidRequest = errors.New("invalid booking request")
 )
 
 type Port struct {
@@ -56,10 +56,10 @@ const maxPassengersPerBooking = 9
 
 func (r BookingRequest) Validate() error {
 	if r.DepartureID == "" {
-		return fmt.Errorf("%w: departure_id fehlt", ErrInvalidRequest)
+		return fmt.Errorf("%w: departure_id missing", ErrInvalidRequest)
 	}
 	if r.Passengers < 1 || r.Passengers > maxPassengersPerBooking {
-		return fmt.Errorf("%w: passengers muss zwischen 1 und %d liegen",
+		return fmt.Errorf("%w: passengers must be between 1 and %d",
 			ErrInvalidRequest, maxPassengersPerBooking)
 	}
 	return nil

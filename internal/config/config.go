@@ -26,10 +26,10 @@ func Load(getenv func(string) string) (Config, error) {
 	if raw := getenv("PORT"); raw != "" {
 		port, err := strconv.Atoi(raw)
 		if err != nil {
-			return Config{}, fmt.Errorf("PORT ist keine Zahl: %q", raw)
+			return Config{}, fmt.Errorf("PORT is not a number: %q", raw)
 		}
 		if port < 1 || port > 65535 {
-			return Config{}, fmt.Errorf("PORT liegt außerhalb 1..65535: %d", port)
+			return Config{}, fmt.Errorf("PORT is outside 1..65535: %d", port)
 		}
 		c.Port = port
 	}

@@ -63,7 +63,7 @@ func (s *MemoryStore) Departure(ctx context.Context, id string) (domain.Departur
 
 	d, ok := s.departures[id]
 	if !ok {
-		return domain.Departure{}, fmt.Errorf("%w: Abfahrt %s", ErrNotFound, id)
+		return domain.Departure{}, fmt.Errorf("%w: departure %s", ErrNotFound, id)
 	}
 	return d, nil
 }
@@ -74,7 +74,7 @@ func (s *MemoryStore) Booking(ctx context.Context, id string) (domain.Booking, e
 
 	b, ok := s.bookings[id]
 	if !ok {
-		return domain.Booking{}, fmt.Errorf("%w: Buchung %s", ErrNotFound, id)
+		return domain.Booking{}, fmt.Errorf("%w: booking %s", ErrNotFound, id)
 	}
 	return b, nil
 }
@@ -89,7 +89,7 @@ func (s *MemoryStore) Book(ctx context.Context, req domain.BookingRequest, opts 
 
 	d, ok := s.departures[req.DepartureID]
 	if !ok {
-		return domain.Booking{}, fmt.Errorf("%w: Abfahrt %s", ErrNotFound, req.DepartureID)
+		return domain.Booking{}, fmt.Errorf("%w: departure %s", ErrNotFound, req.DepartureID)
 	}
 	if err := domain.CheckSeats(d, req.Passengers, opts); err != nil {
 		return domain.Booking{}, err

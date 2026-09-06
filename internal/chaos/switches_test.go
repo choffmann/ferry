@@ -80,7 +80,29 @@ func TestLeakerAllocatesAndReleases(t *testing.T) {
 	}
 }
 
-func TestLeakerAllocatesAtLeastOneMBWhenSwitchedOn(t *testing.T) {
+// A rate that is not a whole number of megabytes per tick has to carry its
+// remainder, or the truncation silently changes the rate: 32 MB per minute at a
+// six second tick would allocate three megabytes ten times and deliver 30.
+func TestLeakerRateIsExactOverAMinute(t *testing.T) {
+	ctx := context.Background()
+	for _, mb := range []int{1, 5, 32, 500} {
+		st := NewMemoryStore()
+		l := NewLeaker(st, 6*time.Second)
+		if _, err := st.Apply(ctx, Patch{Resources: &ResourcesPatch{MemoryLeakMBPerMin: &mb}}); err != nil {
+			t.Fatalf("Apply: %v", err)
+		}
+		for i := 0; i < 10; i++ {
+			l.tick(ctx)
+		}
+		if got := l.AllocatedMB(); got != mb {
+			t.Errorf("%d MB per minute: allocated %d MB after a minute of ticks", mb, got)
+		}
+	}
+}
+
+// Below one megabyte per tick nothing is allocated until the remainder adds up.
+// Rounding up instead would turn every rate under ten into ten.
+func TestLeakerCarriesARateBelowOneBlockPerTick(t *testing.T) {
 	ctx := context.Background()
 	st := NewMemoryStore()
 	l := NewLeaker(st, time.Second)
@@ -90,11 +112,43 @@ func TestLeakerAllocatesAtLeastOneMBWhenSwitchedOn(t *testing.T) {
 		t.Fatalf("Apply: %v", err)
 	}
 
-	// One megabyte per minute at a one second tick rounds down to zero, which
-	// would make the switch look broken. It is clamped to one instead.
+	for i := 0; i < 59; i++ {
+		l.tick(ctx)
+	}
+	if got := l.AllocatedMB(); got != 0 {
+		t.Errorf("AllocatedMB = %d after 59 of the 60 ticks that make a megabyte", got)
+	}
 	l.tick(ctx)
 	if got := l.AllocatedMB(); got != 1 {
-		t.Errorf("AllocatedMB = %d, want 1", got)
+		t.Errorf("AllocatedMB = %d after a full minute, want 1", got)
+	}
+}
+
+// A reset must drop the carried remainder too, or the next run starts in debt.
+func TestLeakerResetClearsTheCarriedRemainder(t *testing.T) {
+	ctx := context.Background()
+	st := NewMemoryStore()
+	l := NewLeaker(st, 6*time.Second)
+
+	mb := 5
+	if _, err := st.Apply(ctx, Patch{Resources: &ResourcesPatch{MemoryLeakMBPerMin: &mb}}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	l.tick(ctx)
+
+	if _, err := st.Reset(ctx); err != nil {
+		t.Fatalf("Reset: %v", err)
+	}
+	l.tick(ctx)
+
+	if _, err := st.Apply(ctx, Patch{Resources: &ResourcesPatch{MemoryLeakMBPerMin: &mb}}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	for i := 0; i < 10; i++ {
+		l.tick(ctx)
+	}
+	if got := l.AllocatedMB(); got != mb {
+		t.Errorf("allocated %d MB in the minute after a reset, want %d", got, mb)
 	}
 }
 

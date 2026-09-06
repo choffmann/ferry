@@ -2,6 +2,7 @@ package chaos
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 )
@@ -94,6 +95,36 @@ func TestLeakerAllocatesAtLeastOneMBWhenSwitchedOn(t *testing.T) {
 	l.tick(ctx)
 	if got := l.AllocatedMB(); got != 1 {
 		t.Errorf("AllocatedMB = %d, want 1", got)
+	}
+}
+
+// Go serves a large allocation from freshly mapped zero pages and skips zeroing
+// them, so a block counts against the heap but stays out of RSS until each of its
+// pages is written. Touching only the first byte made the switch deliver 2.4% of
+// what it promised, which is the whole point of the switch.
+func TestLeakerTouchesEveryPageOfEachBlock(t *testing.T) {
+	ctx := context.Background()
+	st := NewMemoryStore()
+	l := NewLeaker(st, 6*time.Second)
+
+	mb := 10
+	if _, err := st.Apply(ctx, Patch{Resources: &ResourcesPatch{MemoryLeakMBPerMin: &mb}}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	l.tick(ctx)
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if len(l.blocks) == 0 {
+		t.Fatal("the tick allocated nothing")
+	}
+	page := os.Getpagesize()
+	for i, b := range l.blocks {
+		for off := 0; off < len(b); off += page {
+			if b[off] == 0 {
+				t.Fatalf("block %d: the page at offset %d was never written", i, off)
+			}
+		}
 	}
 }
 

@@ -3,7 +3,7 @@
 Alle Antworten sind JSON. Fehler haben die Form
 
 ```json
-{ "error": "Abfahrt ist ausgebucht", "request_id": "3f9a1c4e2b7d8005" }
+{ "error": "departure is sold out", "request_id": "3f9a1c4e2b7d8005" }
 ```
 
 Jede Antwort trägt den Kopf `X-Request-Id`. Wird er mitgeschickt, übernimmt der

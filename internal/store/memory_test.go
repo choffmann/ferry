@@ -6,7 +6,7 @@ import (
 )
 
 func TestMemoryStoreSatisfiesTheContract(t *testing.T) {
-	runRepositoryContract(t, func(now time.Time) Repository {
-		return NewMemoryStore(now)
+	runRepositoryContract(t, func(seed time.Time, now func() time.Time) Repository {
+		return newMemoryStore(seed, now)
 	})
 }

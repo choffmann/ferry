@@ -10,15 +10,30 @@ import (
 	"github.com/choffmann/ferry/internal/domain"
 )
 
-func seedTime() time.Time {
+func seedDay() time.Time {
 	return time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC)
 }
 
-func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository) {
+// An hour before the first sailing of the seeded week, so every departure is
+// open no matter on which day the suite runs.
+func duringSeed() time.Time {
+	return seedDay().Add(5 * time.Hour)
+}
+
+func fixed(at time.Time) func() time.Time {
+	return func() time.Time { return at }
+}
+
+func advancingFrom(at time.Time) func() time.Time {
+	start := time.Now()
+	return func() time.Time { return at.Add(time.Since(start)) }
+}
+
+func runRepositoryContract(t *testing.T, newRepo func(seed time.Time, now func() time.Time) Repository) {
 	t.Helper()
 
 	t.Run("connections are returned", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), fixed(duringSeed()))
 		got, err := r.Connections(context.Background())
 		if err != nil {
 			t.Fatalf("Connections: %v", err)
@@ -29,7 +44,7 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 	})
 
 	t.Run("departures are filtered by connection and start time", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), fixed(duringSeed()))
 		all, err := r.Departures(context.Background(), "FL-SO", time.Time{})
 		if err != nil {
 			t.Fatalf("Departures: %v", err)
@@ -58,8 +73,39 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 		}
 	})
 
+	t.Run("a departure that has left is neither listed nor bookable", func(t *testing.T) {
+		noon := seedDay().Add(12 * time.Hour)
+		r := newRepo(seedDay(), fixed(noon))
+
+		gone := closedDeparture(t, seedDay(), noon)
+		listed, err := r.Departures(context.Background(), gone.ConnectionID, time.Time{})
+		if err != nil {
+			t.Fatalf("Departures: %v", err)
+		}
+		for _, d := range listed {
+			if !domain.BookingOpen(d, noon) {
+				t.Fatalf("departure %s is closed and still listed", d.ID)
+			}
+		}
+
+		// An explicit from in the past must not bring the closed ones back.
+		since, err := r.Departures(context.Background(), gone.ConnectionID, seedDay())
+		if err != nil {
+			t.Fatalf("Departures with from: %v", err)
+		}
+		if len(since) != len(listed) {
+			t.Errorf("from=%v listed %d departures, want the same %d", seedDay(), len(since), len(listed))
+		}
+
+		_, err = r.Book(context.Background(),
+			domain.BookingRequest{DepartureID: gone.ID, Passengers: 1}, domain.BookOptions{})
+		if !errors.Is(err, domain.ErrBookingClosed) {
+			t.Errorf("Book on %s = %v, want ErrBookingClosed", gone.ID, err)
+		}
+	})
+
 	t.Run("unknown ids report not found", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), fixed(duringSeed()))
 		if _, err := r.Departure(context.Background(), "nope"); !errors.Is(err, ErrNotFound) {
 			t.Errorf("Departure = %v, want ErrNotFound", err)
 		}
@@ -69,7 +115,7 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 	})
 
 	t.Run("booking reduces the free seats and can be read back", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), fixed(duringSeed()))
 		d := firstDeparture(t, r)
 
 		b, err := r.Book(context.Background(),
@@ -99,7 +145,7 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 	})
 
 	t.Run("an invalid request is rejected before anything is written", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), fixed(duringSeed()))
 		d := firstDeparture(t, r)
 
 		if _, err := r.Book(context.Background(),
@@ -117,7 +163,7 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 	})
 
 	t.Run("a full departure is sold out", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), fixed(duringSeed()))
 		d := firstDeparture(t, r)
 
 		for i := 0; i < domain.SeatsPerDeparture; i++ {
@@ -134,7 +180,7 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 	})
 
 	t.Run("overbooking is allowed when the option says so", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), fixed(duringSeed()))
 		d := firstDeparture(t, r)
 
 		for i := 0; i < domain.SeatsPerDeparture; i++ {
@@ -159,7 +205,7 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 	})
 
 	t.Run("bookings are stamped with the current time, not the seed time", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), advancingFrom(duringSeed()))
 		d := firstDeparture(t, r)
 
 		first, err := r.Book(context.Background(),
@@ -179,7 +225,7 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 		if first.CreatedAt.Equal(second.CreatedAt) {
 			t.Errorf("both bookings have CreatedAt %v", first.CreatedAt)
 		}
-		if first.CreatedAt.Equal(seedTime()) || second.CreatedAt.Equal(seedTime()) {
+		if first.CreatedAt.Equal(seedDay()) || second.CreatedAt.Equal(seedDay()) {
 			t.Error("CreatedAt equals the seed time, want the current time")
 		}
 	})
@@ -187,7 +233,7 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 	// The reason Book is one method instead of read, check, write. Splitting it
 	// makes this test red.
 	t.Run("concurrent bookings never exceed the capacity", func(t *testing.T) {
-		r := newRepo(seedTime())
+		r := newRepo(seedDay(), fixed(duringSeed()))
 		d := firstDeparture(t, r)
 
 		const attempts = 100
@@ -229,6 +275,17 @@ func runRepositoryContract(t *testing.T, newRepo func(now time.Time) Repository)
 			t.Errorf("booked = %d, want exactly %d", after.Booked, domain.SeatsPerDeparture)
 		}
 	})
+}
+
+func closedDeparture(t *testing.T, seed, now time.Time) domain.Departure {
+	t.Helper()
+	for _, d := range domain.Departures(seed) {
+		if !domain.BookingOpen(d, now) {
+			return d
+		}
+	}
+	t.Fatalf("the seeded timetable has no departure that is closed at %v", now)
+	return domain.Departure{}
 }
 
 func firstDeparture(t *testing.T, r Repository) domain.Departure {

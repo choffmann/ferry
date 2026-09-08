@@ -9,6 +9,7 @@ import (
 var (
 	ErrSoldOut        = errors.New("no seats left")
 	ErrInvalidRequest = errors.New("invalid booking request")
+	ErrBookingClosed  = errors.New("booking has closed for this departure")
 )
 
 type Port struct {
@@ -71,9 +72,19 @@ type BookOptions struct {
 	AllowOverbooking bool
 }
 
-// CheckSeats is the capacity invariant. It lives here and not in the store so
-// that the Postgres implementation in v0.3.0 does not restate it.
-func CheckSeats(d Departure, want int, opts BookOptions) error {
+// BookingOpen reports whether a departure still takes bookings. Boarding closes
+// a while before it leaves, so a sailing that has gone is no longer on offer.
+func BookingOpen(d Departure, now time.Time) bool {
+	return now.Before(d.DepartsAt.Add(-BoardingClosesBefore))
+}
+
+// CheckBookable is the booking invariant. It lives here and not in the store so
+// that the Postgres implementation in v0.3.0 does not restate it. Overbooking
+// lifts the capacity limit, never the boarding deadline.
+func CheckBookable(d Departure, now time.Time, want int, opts BookOptions) error {
+	if !BookingOpen(d, now) {
+		return ErrBookingClosed
+	}
 	if opts.AllowOverbooking {
 		return nil
 	}

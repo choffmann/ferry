@@ -64,7 +64,7 @@ gibt ihn nicht zurück. `0` oder ein `DELETE` gibt das Belegte wieder frei.
 Boolescher Wert. Ist er `true`, entfällt die Kapazitätsprüfung bei
 `POST /bookings` vollständig: die Buchung gelingt unabhängig davon, wie viele
 Plätze die betroffene Abfahrt noch hat, und `booked` kann `capacity`
-übersteigen.
+übersteigen. Der Buchungsschluss bleibt davon unberührt.
 
 ```json
 { "booking": { "allow_overbooking": true } }

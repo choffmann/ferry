@@ -16,7 +16,8 @@ type ResourcesState struct {
 }
 
 // AllowOverbooking is the only chaos switch affecting domain logic rather than
-// HTTP responses; it travels through BookOptions to skip the capacity rule in CheckSeats.
+// HTTP responses; it travels through BookOptions to skip the capacity rule in
+// CheckBookable. The boarding deadline stays in force.
 type BookingState struct {
 	AllowOverbooking bool `json:"allow_overbooking"`
 }

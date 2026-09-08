@@ -6,7 +6,8 @@ import (
 )
 
 const (
-	SeatsPerDeparture = 40
+	SeatsPerDeparture    = 40
+	BoardingClosesBefore = 15 * time.Minute
 
 	seedDays  = 7
 	firstHour = 6

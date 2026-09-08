@@ -27,10 +27,12 @@ Liefert alle Verbindungen.
 ## `GET /connections/{id}/departures`
 
 Liefert die Abfahrten einer Verbindung, aufsteigend nach Zeit. Der Fahrplan
-umfasst sieben Tage ab dem aktuellen Tag.
+umfasst sieben Tage ab dem aktuellen Tag. Abfahrten, deren Buchungsschluss
+vorbei ist, stehen nicht in der Liste.
 
 Parameter `from`, optional: Zeitstempel nach RFC3339. Abfahrten davor werden
-weggelassen. Ein unlesbarer Wert ergibt `400`.
+weggelassen. Ein unlesbarer Wert ergibt `400`. Ein Wert in der Vergangenheit
+holt keine abgefahrenen Verbindungen zurück.
 
 ```json
 [
@@ -54,12 +56,15 @@ Legt eine Buchung an.
 
 `passengers` liegt zwischen 1 und 9.
 
+Der Buchungsschluss liegt 15 Minuten vor der Abfahrt. Danach nimmt die Abfahrt
+keine Buchung mehr an, auch nicht mit eingeschalteter Überbuchung.
+
 | Status | Bedeutung |
 |---|---|
 | `201` | angelegt, die Buchung steht im Körper |
 | `400` | Körper unlesbar oder Werte außerhalb des Erlaubten |
 | `404` | die Abfahrt gibt es nicht |
-| `409` | die Abfahrt ist ausgebucht |
+| `409` | die Abfahrt ist ausgebucht (`departure is sold out`) oder der Buchungsschluss ist vorbei (`departure is closed for booking`) |
 
 ```json
 {

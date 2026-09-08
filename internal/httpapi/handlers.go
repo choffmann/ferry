@@ -69,6 +69,8 @@ func (d Deps) createBooking(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusNotFound, "departure not found")
 	case errors.Is(err, domain.ErrSoldOut):
 		writeError(w, r, http.StatusConflict, "departure is sold out")
+	case errors.Is(err, domain.ErrBookingClosed):
+		writeError(w, r, http.StatusConflict, "departure is closed for booking")
 	default:
 		writeError(w, r, http.StatusInternalServerError, "booking failed")
 	}

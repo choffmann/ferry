@@ -21,13 +21,19 @@ type MemoryStore struct {
 }
 
 func NewMemoryStore(now time.Time) *MemoryStore {
+	return newMemoryStore(now, func() time.Time { return time.Now().UTC() })
+}
+
+// The seed date and the clock are separate: the timetable is built once for a
+// day, while the boarding deadline is checked against the moment of the request.
+func newMemoryStore(seed time.Time, now func() time.Time) *MemoryStore {
 	s := &MemoryStore{
 		connections: domain.Connections(),
 		departures:  map[string]domain.Departure{},
 		bookings:    map[string]domain.Booking{},
-		now:         func() time.Time { return time.Now().UTC() },
+		now:         now,
 	}
-	for _, d := range domain.Departures(now) {
+	for _, d := range domain.Departures(seed) {
 		s.departures[d.ID] = d
 		s.departureIDs = append(s.departureIDs, d.ID)
 	}
@@ -42,10 +48,14 @@ func (s *MemoryStore) Departures(ctx context.Context, connectionID string, from 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	now := s.now()
 	var out []domain.Departure
 	for _, id := range s.departureIDs {
 		d := s.departures[id]
 		if d.ConnectionID != connectionID {
+			continue
+		}
+		if !domain.BookingOpen(d, now) {
 			continue
 		}
 		if !from.IsZero() && d.DepartsAt.Before(from) {
@@ -91,7 +101,7 @@ func (s *MemoryStore) Book(ctx context.Context, req domain.BookingRequest, opts 
 	if !ok {
 		return domain.Booking{}, fmt.Errorf("%w: departure %s", ErrNotFound, req.DepartureID)
 	}
-	if err := domain.CheckSeats(d, req.Passengers, opts); err != nil {
+	if err := domain.CheckBookable(d, s.now(), req.Passengers, opts); err != nil {
 		return domain.Booking{}, err
 	}
 

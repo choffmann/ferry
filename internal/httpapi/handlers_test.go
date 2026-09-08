@@ -20,13 +20,26 @@ func newTestServer(t *testing.T) (http.Handler, *chaos.MemoryStore) {
 	t.Helper()
 	cs := chaos.NewMemoryStore()
 	h := NewRouter(Deps{
-		Repo:       store.NewMemoryStore(time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC)),
+		Repo:       store.NewMemoryStore(time.Now().UTC()),
 		Chaos:      cs,
 		AdminToken: "test-token",
 		Logger:     obs.NewLogger(io.Discard),
 		Draw:       func() float64 { return 1 },
 	})
 	return h, cs
+}
+
+func openDepartureID(t *testing.T, h http.Handler) string {
+	t.Helper()
+	rec := do(t, h, http.MethodGet, "/connections/FL-SO/departures", "")
+	var ds []domain.Departure
+	if err := json.Unmarshal(rec.Body.Bytes(), &ds); err != nil {
+		t.Fatalf("departures: %v", err)
+	}
+	if len(ds) == 0 {
+		t.Fatal("no departures on offer")
+	}
+	return ds[0].ID
 }
 
 func do(t *testing.T, h http.Handler, method, path, body string) *httptest.ResponseRecorder {
@@ -71,6 +84,27 @@ func TestDeparturesOfAConnection(t *testing.T) {
 	for _, d := range got {
 		if d.ConnectionID != "FL-SO" {
 			t.Fatalf("got a departure of %s", d.ConnectionID)
+		}
+	}
+}
+
+func TestDeparturesThatHaveLeftAreNotListed(t *testing.T) {
+	h, _ := newTestServer(t)
+	rec := do(t, h, http.MethodGet, "/connections/FL-SO/departures?from=2000-01-01T00:00:00Z", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body)
+	}
+	var got []domain.Departure
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if len(got) == 0 {
+		t.Fatal("no departures")
+	}
+	now := time.Now().UTC()
+	for _, d := range got {
+		if !domain.BookingOpen(d, now) {
+			t.Errorf("departure %s has left and is still on offer", d.ID)
 		}
 	}
 }
@@ -121,7 +155,7 @@ func TestBookingErrors(t *testing.T) {
 	}{
 		{"kein JSON", "{", http.StatusBadRequest},
 		{"keine Abfahrt", `{"departure_id":"","passengers":1}`, http.StatusBadRequest},
-		{"null Personen", `{"departure_id":"FL-SO-2026-09-29T06","passengers":0}`, http.StatusBadRequest},
+		{"null Personen", `{"departure_id":"` + openDepartureID(t, h) + `","passengers":0}`, http.StatusBadRequest},
 		{"unbekannte Abfahrt", `{"departure_id":"gibtsnicht","passengers":1}`, http.StatusNotFound},
 	}
 	for _, c := range cases {
@@ -143,7 +177,7 @@ func TestBookingErrors(t *testing.T) {
 
 func TestAFullDepartureAnswersWithConflict(t *testing.T) {
 	h, _ := newTestServer(t)
-	id := "FL-SO-2026-09-29T06"
+	id := openDepartureID(t, h)
 
 	for i := 0; i < domain.SeatsPerDeparture; i++ {
 		rec := do(t, h, http.MethodPost, "/bookings", `{"departure_id":"`+id+`","passengers":1}`)
@@ -159,7 +193,7 @@ func TestAFullDepartureAnswersWithConflict(t *testing.T) {
 
 func TestOverbookingSwitchAllowsBookingPastCapacity(t *testing.T) {
 	h, _ := newTestServer(t)
-	id := "FL-SO-2026-09-29T06"
+	id := openDepartureID(t, h)
 
 	for i := 0; i < domain.SeatsPerDeparture; i++ {
 		rec := do(t, h, http.MethodPost, "/bookings", `{"departure_id":"`+id+`","passengers":1}`)

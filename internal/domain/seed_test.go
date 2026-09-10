@@ -62,3 +62,42 @@ func TestDepartureIDsAreUnique(t *testing.T) {
 		seen[d.ID] = true
 	}
 }
+
+func mustZone(t *testing.T) *time.Location {
+	t.Helper()
+	loc, err := LoadZone()
+	if err != nil {
+		t.Fatalf("LoadZone: %v", err)
+	}
+	return loc
+}
+
+func TestLoadZoneReturnsTheTimetableZone(t *testing.T) {
+	if got := mustZone(t).String(); got != TimetableZone {
+		t.Errorf("LoadZone() = %s, want %s", got, TimetableZone)
+	}
+}
+
+func TestDeparturesFollowTheZoneOfTheSeed(t *testing.T) {
+	berlin := mustZone(t)
+	got := Departures(time.Date(2026, 7, 1, 11, 17, 0, 0, berlin))
+
+	first := got[0]
+	if first.DepartsAt.Hour() != firstHour {
+		t.Errorf("first slot leaves at %02d local, want %02d", first.DepartsAt.Hour(), firstHour)
+	}
+	if _, offset := first.DepartsAt.Zone(); offset != 2*60*60 {
+		t.Errorf("offset in July = %d seconds, want 7200 for summer time in %s", offset, TimetableZone)
+	}
+}
+
+func TestDeparturesKeepTheirWallClockAcrossTheDstChange(t *testing.T) {
+	// The seeded week starting on 22.10.2026 contains the change back to
+	// standard time on the 25th.
+	for _, d := range Departures(time.Date(2026, 10, 22, 8, 0, 0, 0, mustZone(t))) {
+		h := d.DepartsAt.Hour()
+		if h < firstHour || h > lastHour || (h-firstHour)%hourStep != 0 {
+			t.Fatalf("departure %s leaves at %02d local, off the timetable grid", d.ID, h)
+		}
+	}
+}

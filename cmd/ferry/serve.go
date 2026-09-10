@@ -12,6 +12,7 @@ import (
 
 	"github.com/choffmann/ferry/internal/chaos"
 	"github.com/choffmann/ferry/internal/config"
+	"github.com/choffmann/ferry/internal/domain"
 	"github.com/choffmann/ferry/internal/httpapi"
 	"github.com/choffmann/ferry/internal/obs"
 	"github.com/choffmann/ferry/internal/store"
@@ -44,12 +45,17 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 			"stamp the binary with -ldflags at build time")
 	}
 
+	zone, err := domain.LoadZone()
+	if err != nil {
+		return err
+	}
+
 	chaosStore := chaos.NewMemoryStore()
 	leaker := chaos.NewLeaker(chaosStore, leakInterval)
 	go leaker.Run(ctx)
 
 	handler := httpapi.NewRouter(httpapi.Deps{
-		Repo:       store.NewMemoryStore(time.Now().UTC()),
+		Repo:       store.NewMemoryStore(time.Now().In(zone)),
 		Chaos:      chaosStore,
 		AdminToken: cfg.AdminToken,
 		Logger:     logger,

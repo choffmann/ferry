@@ -38,6 +38,12 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 			"admin_token", config.DefaultAdminToken)
 	}
 
+	info := obs.Version()
+	if !info.Stamped() {
+		logger.Warn("build info missing, /version answers with empty fields, " +
+			"stamp the binary with -ldflags at build time")
+	}
+
 	chaosStore := chaos.NewMemoryStore()
 	leaker := chaos.NewLeaker(chaosStore, leakInterval)
 	go leaker.Run(ctx)
@@ -59,7 +65,6 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 	}
 
 	srv := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second}
-	info := obs.Version()
 	logger.Info("ferry is starting",
 		"addr", ln.Addr().String(), "version", info.Version, "commit", info.Commit)
 

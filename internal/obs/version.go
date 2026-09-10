@@ -1,11 +1,11 @@
 package obs
 
-// Overwritten at build time via -ldflags from v0.2.0 on. They already exist here
-// so that release is a build change and not a code change.
+// Set at build time via -ldflags. Empty is the honest answer for a binary built
+// without them: nobody can tell which commit is running.
 var (
-	version   = "dev"
-	commit    = "none"
-	buildTime = "unknown"
+	version   string
+	commit    string
+	buildTime string
 )
 
 type BuildInfo struct {
@@ -16,4 +16,9 @@ type BuildInfo struct {
 
 func Version() BuildInfo {
 	return BuildInfo{Version: version, Commit: commit, BuildTime: buildTime}
+}
+
+// Stamped reports whether the build passed all three values in.
+func (b BuildInfo) Stamped() bool {
+	return b.Version != "" && b.Commit != "" && b.BuildTime != ""
 }

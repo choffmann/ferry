@@ -250,7 +250,7 @@ func TestReadyzFollowsTheSwitch(t *testing.T) {
 	}
 }
 
-func TestVersionReportsTheBuildInfo(t *testing.T) {
+func TestVersionMirrorsTheBuildStamp(t *testing.T) {
 	h, _ := newTestServer(t)
 	rec := do(t, h, http.MethodGet, "/version", "")
 	if rec.Code != http.StatusOK {
@@ -260,7 +260,7 @@ func TestVersionReportsTheBuildInfo(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("body is not JSON: %v", err)
 	}
-	if got.Version == "" || got.Commit == "" || got.BuildTime == "" {
-		t.Errorf("incomplete build info: %+v", got)
+	if got != obs.Version() {
+		t.Errorf("build info = %+v, want %+v", got, obs.Version())
 	}
 }

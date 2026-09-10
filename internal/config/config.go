@@ -8,11 +8,16 @@ import (
 const (
 	DefaultPort       = 8080
 	DefaultAdminToken = "local-dev"
+	DefaultAssetsDir  = "./assets"
 )
 
 type Config struct {
 	Port       int
 	AdminToken string
+	// AssetsDir holds the templates the application reads at startup. Relative
+	// to the working directory, so a container needs both the binary and the
+	// directory.
+	AssetsDir string
 	// AdminTokenIsDefault drives the warning on startup. v0.3.0 removes the
 	// default, and by then the warning has been in the logs for weeks.
 	AdminTokenIsDefault bool
@@ -21,7 +26,12 @@ type Config struct {
 // Load takes the lookup function instead of calling os.Getenv, so every case is
 // testable without touching the process environment.
 func Load(getenv func(string) string) (Config, error) {
-	c := Config{Port: DefaultPort, AdminToken: DefaultAdminToken, AdminTokenIsDefault: true}
+	c := Config{
+		Port:                DefaultPort,
+		AdminToken:          DefaultAdminToken,
+		AdminTokenIsDefault: true,
+		AssetsDir:           DefaultAssetsDir,
+	}
 
 	if raw := getenv("PORT"); raw != "" {
 		port, err := strconv.Atoi(raw)
@@ -37,6 +47,10 @@ func Load(getenv func(string) string) (Config, error) {
 	if raw := getenv("ADMIN_TOKEN"); raw != "" {
 		c.AdminToken = raw
 		c.AdminTokenIsDefault = false
+	}
+
+	if raw := getenv("ASSETS_DIR"); raw != "" {
+		c.AssetsDir = raw
 	}
 
 	return c, nil

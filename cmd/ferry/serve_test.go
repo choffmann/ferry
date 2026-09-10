@@ -6,10 +6,25 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+// These tests run in cmd/ferry, so ASSETS_DIR points at the directory in the
+// repository root unless the case sets it itself.
+func env(vars map[string]string) func(string) string {
+	return func(k string) string {
+		if v, ok := vars[k]; ok {
+			return v
+		}
+		if k == "ASSETS_DIR" {
+			return filepath.Join("..", "..", "assets")
+		}
+		return ""
+	}
+}
 
 func TestRunServeAnswersAndShutsDown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -17,7 +32,7 @@ func TestRunServeAnswersAndShutsDown(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18081"}, func(string) string { return "" }, &logs)
+		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18081"}, env(nil), &logs)
 	}()
 
 	waitForHealth(t, "http://127.0.0.1:18081/healthz")
@@ -50,7 +65,7 @@ func TestRunServeWarnsAboutTheDefaultToken(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18082"}, func(string) string { return "" }, &logs)
+		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18082"}, env(nil), &logs)
 	}()
 	waitForHealth(t, "http://127.0.0.1:18082/healthz")
 	cancel()
@@ -67,7 +82,7 @@ func TestRunServeWarnsAboutAnUnstampedBinary(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18083"}, func(string) string { return "" }, &logs)
+		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18083"}, env(nil), &logs)
 	}()
 	waitForHealth(t, "http://127.0.0.1:18083/healthz")
 	cancel()
@@ -75,6 +90,18 @@ func TestRunServeWarnsAboutAnUnstampedBinary(t *testing.T) {
 
 	if !warnedAbout(logs.String(), "-ldflags") {
 		t.Errorf("no warning about the missing build stamp:\n%s", logs.String())
+	}
+}
+
+func TestRunServeRefusesToStartWithoutTheAssets(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "assets")
+	err := runServe(context.Background(), nil,
+		env(map[string]string{"ASSETS_DIR": missing}), io.Discard)
+	if err == nil {
+		t.Fatal("runServe with a missing asset directory returned no error")
+	}
+	if !strings.Contains(err.Error(), missing) {
+		t.Errorf("error %q does not name the asset directory it looked in", err)
 	}
 }
 
@@ -94,12 +121,7 @@ func warnedAbout(logs, substring string) bool {
 
 func TestRunServeRejectsABadPort(t *testing.T) {
 	err := runServe(context.Background(), nil,
-		func(k string) string {
-			if k == "PORT" {
-				return "achttausend"
-			}
-			return ""
-		}, io.Discard)
+		env(map[string]string{"PORT": "achttausend"}), io.Discard)
 	if err == nil {
 		t.Error("runServe with PORT=achttausend returned no error")
 	}

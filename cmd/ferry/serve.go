@@ -16,6 +16,7 @@ import (
 	"github.com/choffmann/ferry/internal/httpapi"
 	"github.com/choffmann/ferry/internal/obs"
 	"github.com/choffmann/ferry/internal/store"
+	"github.com/choffmann/ferry/internal/ticket"
 )
 
 const leakInterval = 6 * time.Second
@@ -50,6 +51,11 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 		return err
 	}
 
+	tickets, err := ticket.Load(cfg.AssetsDir)
+	if err != nil {
+		return err
+	}
+
 	chaosStore := chaos.NewMemoryStore()
 	leaker := chaos.NewLeaker(chaosStore, leakInterval)
 	go leaker.Run(ctx)
@@ -59,6 +65,7 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 		Chaos:      chaosStore,
 		AdminToken: cfg.AdminToken,
 		Logger:     logger,
+		Tickets:    tickets,
 	})
 
 	listenOn := *addr

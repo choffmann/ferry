@@ -6,6 +6,7 @@ import (
 
 	"github.com/choffmann/ferry/internal/chaos"
 	"github.com/choffmann/ferry/internal/store"
+	"github.com/choffmann/ferry/internal/ticket"
 )
 
 type Deps struct {
@@ -13,6 +14,7 @@ type Deps struct {
 	Chaos      chaos.Store
 	AdminToken string
 	Logger     *slog.Logger
+	Tickets    *ticket.Renderer
 	// Draw supplies the random number for the error-rate switch. Tests pin it.
 	Draw func() float64
 }
@@ -29,6 +31,7 @@ func NewRouter(d Deps) http.Handler {
 	mux.HandleFunc("GET /connections/{id}/departures", d.listDepartures)
 	mux.HandleFunc("POST /bookings", d.createBooking)
 	mux.HandleFunc("GET /bookings/{id}", d.getBooking)
+	mux.HandleFunc("GET /bookings/{id}/ticket", d.bookingTicket)
 
 	mux.HandleFunc("GET /healthz", d.healthz)
 	mux.HandleFunc("GET /readyz", d.readyz)

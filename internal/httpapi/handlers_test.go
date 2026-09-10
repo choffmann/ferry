@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/choffmann/ferry/internal/domain"
 	"github.com/choffmann/ferry/internal/obs"
 	"github.com/choffmann/ferry/internal/store"
+	"github.com/choffmann/ferry/internal/ticket"
 )
 
 func newTestServer(t *testing.T) (http.Handler, *chaos.MemoryStore) {
@@ -24,9 +27,29 @@ func newTestServer(t *testing.T) (http.Handler, *chaos.MemoryStore) {
 		Chaos:      cs,
 		AdminToken: "test-token",
 		Logger:     obs.NewLogger(io.Discard),
+		Tickets:    testRenderer(t),
 		Draw:       func() float64 { return 1 },
 	})
 	return h, cs
+}
+
+// The router gets its own minimal template so that these tests cover the route
+// and not the wording of the shipped boarding pass.
+func testRenderer(t *testing.T) *ticket.Renderer {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "tickets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "ticket {{.Booking.ID}} {{.Connection.From.Name}}->{{.Connection.To.Name}}\n"
+	if err := os.WriteFile(filepath.Join(dir, "tickets", "ticket.txt.tmpl"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := ticket.Load(dir)
+	if err != nil {
+		t.Fatalf("ticket.Load: %v", err)
+	}
+	return r
 }
 
 func openDepartureID(t *testing.T, h http.Handler) string {
@@ -247,6 +270,48 @@ func TestReadyzFollowsTheSwitch(t *testing.T) {
 	}
 	if rec := do(t, h, http.MethodGet, "/readyz", ""); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("readyz = %d, want 503", rec.Code)
+	}
+}
+
+func TestTicketIsServedAsPlainText(t *testing.T) {
+	h, _ := newTestServer(t)
+	departureID := openDepartureID(t, h)
+
+	rec := do(t, h, http.MethodPost, "/bookings",
+		`{"departure_id":"`+departureID+`","passengers":2}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("booking status = %d, body %s", rec.Code, rec.Body)
+	}
+	var b domain.Booking
+	if err := json.Unmarshal(rec.Body.Bytes(), &b); err != nil {
+		t.Fatalf("booking: %v", err)
+	}
+
+	rec = do(t, h, http.MethodGet, "/bookings/"+b.ID+"/ticket", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/plain") {
+		t.Errorf("Content-Type = %q, want text/plain", ct)
+	}
+	want := "ticket " + b.ID + " Flensburg->Sønderborg\n"
+	if got := rec.Body.String(); got != want {
+		t.Errorf("body = %q, want %q", got, want)
+	}
+}
+
+func TestTicketForAnUnknownBookingIsNotFound(t *testing.T) {
+	h, _ := newTestServer(t)
+	rec := do(t, h, http.MethodGet, "/bookings/bk-999999/ticket", "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+	var body errorBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("body is not the JSON error format: %s", rec.Body)
+	}
+	if body.Error != "booking not found" {
+		t.Errorf("error = %q, want booking not found", body.Error)
 	}
 }
 

@@ -85,6 +85,14 @@ keine Buchung mehr an, auch nicht mit eingeschalteter Überbuchung.
 
 Liefert eine Buchung, oder `404`.
 
+## `GET /bookings/{id}/ticket`
+
+Liefert den Bordausweis der Buchung als `text/plain`, oder `404`.
+
+Der Text entsteht aus einer Vorlage im Asset-Verzeichnis, die die Anwendung beim
+Start liest. Sie liegt unter `assets/tickets/`, `ASSETS_DIR` zeigt auf ein anderes
+Verzeichnis. Fehlt die Vorlage, startet der Prozess nicht.
+
 ## Betriebsendpunkte
 
 | Endpunkt | Antwort |

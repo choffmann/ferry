@@ -54,6 +54,10 @@ Beim Start löst `ferry serve` die Zeitzone `Europe/Berlin` auf, in der der Fahr
 steht. Fehlt der Laufzeitumgebung die Zeitzonendatenbank, bricht der Start mit einer
 Meldung ab.
 
+Ebenfalls beim Start liest die Anwendung die Vorlagen aus `assets/`. Das Verzeichnis
+gehört damit zum Lieferumfang: wo nur das Binary liegt, startet der Prozess nicht.
+`ASSETS_DIR` zeigt auf einen anderen Pfad.
+
 Die API ist in `docs/api.md` beschrieben, die Chaos-Schnittstelle in
 `docs/chaos.md`.
 

@@ -1,8 +1,11 @@
 package httpapi
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -10,6 +13,7 @@ import (
 	"github.com/choffmann/ferry/internal/domain"
 	"github.com/choffmann/ferry/internal/obs"
 	"github.com/choffmann/ferry/internal/store"
+	"github.com/choffmann/ferry/internal/ticket"
 )
 
 func (d Deps) listConnections(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +91,60 @@ func (d Deps) getBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, b)
+}
+
+func (d Deps) bookingTicket(w http.ResponseWriter, r *http.Request) {
+	b, err := d.Repo.Booking(r.Context(), r.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, r, http.StatusNotFound, "booking not found")
+		return
+	}
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "booking could not be read")
+		return
+	}
+
+	dep, err := d.Repo.Departure(r.Context(), b.DepartureID)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "departure of the booking could not be read")
+		return
+	}
+	conn, err := d.connection(r.Context(), dep.ConnectionID)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "connection of the booking could not be read")
+		return
+	}
+
+	// Rendered into a buffer first, so a template that blows up halfway answers
+	// 500 instead of a half written boarding pass with status 200.
+	var out bytes.Buffer
+	err = d.Tickets.Render(&out, ticket.Ticket{
+		Booking:    b,
+		Departure:  dep,
+		Connection: conn,
+		IssuedAt:   time.Now().In(dep.DepartsAt.Location()),
+	})
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, "ticket could not be rendered")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(out.Bytes())
+}
+
+func (d Deps) connection(ctx context.Context, id string) (domain.Connection, error) {
+	cs, err := d.Repo.Connections(ctx)
+	if err != nil {
+		return domain.Connection{}, err
+	}
+	for _, c := range cs {
+		if c.ID == id {
+			return c, nil
+		}
+	}
+	return domain.Connection{}, fmt.Errorf("%w: connection %s", store.ErrNotFound, id)
 }
 
 func (d Deps) healthz(w http.ResponseWriter, r *http.Request) {

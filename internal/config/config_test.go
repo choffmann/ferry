@@ -20,10 +20,17 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if !c.AdminTokenIsDefault {
 		t.Error("AdminTokenIsDefault = false, want true")
 	}
+	if c.AssetsDir != DefaultAssetsDir {
+		t.Errorf("AssetsDir = %q, want %q", c.AssetsDir, DefaultAssetsDir)
+	}
 }
 
 func TestLoadReadsTheEnvironment(t *testing.T) {
-	c, err := Load(env(map[string]string{"PORT": "3000", "ADMIN_TOKEN": "s3cret"}))
+	c, err := Load(env(map[string]string{
+		"PORT":        "3000",
+		"ADMIN_TOKEN": "s3cret",
+		"ASSETS_DIR":  "/srv/ferry/assets",
+	}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -36,6 +43,9 @@ func TestLoadReadsTheEnvironment(t *testing.T) {
 	if c.AdminTokenIsDefault {
 		t.Error("AdminTokenIsDefault = true although the token was set")
 	}
+	if c.AssetsDir != "/srv/ferry/assets" {
+		t.Errorf("AssetsDir = %q, want /srv/ferry/assets", c.AssetsDir)
+	}
 }
 
 func TestLoadRejectsAnUnusablePort(t *testing.T) {
@@ -47,11 +57,11 @@ func TestLoadRejectsAnUnusablePort(t *testing.T) {
 }
 
 func TestLoadTreatsAnEmptyValueAsUnset(t *testing.T) {
-	c, err := Load(env(map[string]string{"PORT": "", "ADMIN_TOKEN": ""}))
+	c, err := Load(env(map[string]string{"PORT": "", "ADMIN_TOKEN": "", "ASSETS_DIR": ""}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if c.Port != DefaultPort || c.AdminToken != DefaultAdminToken {
+	if c.Port != DefaultPort || c.AdminToken != DefaultAdminToken || c.AssetsDir != DefaultAssetsDir {
 		t.Errorf("empty values did not fall back to the defaults: %+v", c)
 	}
 }

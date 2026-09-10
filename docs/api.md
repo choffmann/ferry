@@ -30,6 +30,11 @@ Liefert die Abfahrten einer Verbindung, aufsteigend nach Zeit. Der Fahrplan
 umfasst sieben Tage ab dem aktuellen Tag. Abfahrten, deren Buchungsschluss
 vorbei ist, stehen nicht in der Liste.
 
+Die Abfahrtszeiten sind Ortszeiten der Häfen, der Fahrplan steht in der Zeitzone
+`Europe/Berlin`. Eine Abfahrt um 06:00 bleibt eine Abfahrt um 06:00, auch in der
+Woche, in der die Sommerzeit endet. Findet der Prozess die Zeitzone nicht, startet
+er nicht.
+
 Parameter `from`, optional: Zeitstempel nach RFC3339. Abfahrten davor werden
 weggelassen. Ein unlesbarer Wert ergibt `400`. Ein Wert in der Vergangenheit
 holt keine abgefahrenen Verbindungen zurück.
@@ -39,7 +44,7 @@ holt keine abgefahrenen Verbindungen zurück.
   {
     "id": "FL-SO-2026-09-29T06",
     "connection_id": "FL-SO",
-    "departs_at": "2026-09-29T06:00:00Z",
+    "departs_at": "2026-09-29T06:00:00+02:00",
     "capacity": 40,
     "booked": 0
   }

@@ -8,12 +8,25 @@ import (
 const (
 	SeatsPerDeparture    = 40
 	BoardingClosesBefore = 15 * time.Minute
+	TimetableZone        = "Europe/Berlin"
 
 	seedDays  = 7
 	firstHour = 6
 	lastHour  = 20
 	hourStep  = 2
 )
+
+// LoadZone resolves the wall clock the timetable is written in. A runtime
+// without a time zone database cannot resolve it, which is a startup error and
+// not something to paper over with UTC.
+func LoadZone() (*time.Location, error) {
+	loc, err := time.LoadLocation(TimetableZone)
+	if err != nil {
+		return nil, fmt.Errorf("timetable zone %s unavailable, no time zone database in this runtime: %w",
+			TimetableZone, err)
+	}
+	return loc, nil
+}
 
 func Ports() []Port {
 	return []Port{
@@ -41,16 +54,18 @@ func Connections() []Connection {
 	}
 }
 
-// Departures builds the timetable for the seven days that start with now's date.
-// Deriving it from the date rather than from a fixed epoch keeps the data
-// identical across teams without ever going stale.
+// Departures builds the timetable for the seven days that start with now's date,
+// on the wall clock of now's own zone: a sailing is scheduled by the clock at the
+// port, so the slots stay put when summer time ends mid-week. Deriving it from the
+// date rather than from a fixed epoch keeps the data identical across teams
+// without ever going stale.
 func Departures(now time.Time) []Departure {
-	day := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	loc := now.Location()
 	var out []Departure
 	for _, c := range Connections() {
 		for d := 0; d < seedDays; d++ {
 			for h := firstHour; h <= lastHour; h += hourStep {
-				at := day.AddDate(0, 0, d).Add(time.Duration(h) * time.Hour)
+				at := time.Date(now.Year(), now.Month(), now.Day()+d, h, 0, 0, 0, loc)
 				out = append(out, Departure{
 					ID:           fmt.Sprintf("%s-%s", c.ID, at.Format("2006-01-02T15")),
 					ConnectionID: c.ID,

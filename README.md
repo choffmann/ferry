@@ -50,6 +50,10 @@ go build -ldflags "\
   -o ferry ./cmd/ferry
 ```
 
+Beim Start löst `ferry serve` die Zeitzone `Europe/Berlin` auf, in der der Fahrplan
+steht. Fehlt der Laufzeitumgebung die Zeitzonendatenbank, bricht der Start mit einer
+Meldung ab.
+
 Die API ist in `docs/api.md` beschrieben, die Chaos-Schnittstelle in
 `docs/chaos.md`.
 

@@ -87,3 +87,11 @@ Liefert eine Buchung, oder `404`.
 | `GET /healthz` | `200`, solange der Prozess läuft |
 | `GET /readyz` | `200` wenn bereit, sonst `503` |
 | `GET /version` | Version, Git-SHA und Build-Zeit |
+
+```json
+{ "version": "v0.2.0", "commit": "1a2b3c4", "build_time": "2026-10-09T08:00:00Z" }
+```
+
+Die drei Werte stammen aus dem Build und werden über `-ldflags` gesetzt. Ein Binary,
+das ohne sie übersetzt wurde, liefert drei leere Felder und schreibt beim Start eine
+Warnung ins Log.

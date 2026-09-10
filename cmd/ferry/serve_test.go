@@ -56,20 +56,40 @@ func TestRunServeWarnsAboutTheDefaultToken(t *testing.T) {
 	cancel()
 	<-done
 
-	var warned bool
-	for _, line := range strings.Split(strings.TrimSpace(logs.String()), "\n") {
+	if !warnedAbout(logs.String(), "ADMIN_TOKEN") {
+		t.Errorf("no warning about the default admin token:\n%s", logs.String())
+	}
+}
+
+func TestRunServeWarnsAboutAnUnstampedBinary(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var logs bytes.Buffer
+
+	done := make(chan error, 1)
+	go func() {
+		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18083"}, func(string) string { return "" }, &logs)
+	}()
+	waitForHealth(t, "http://127.0.0.1:18083/healthz")
+	cancel()
+	<-done
+
+	if !warnedAbout(logs.String(), "-ldflags") {
+		t.Errorf("no warning about the missing build stamp:\n%s", logs.String())
+	}
+}
+
+func warnedAbout(logs, substring string) bool {
+	for _, line := range strings.Split(strings.TrimSpace(logs), "\n") {
 		var entry map[string]any
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			continue
 		}
 		msg, _ := entry["msg"].(string)
-		if entry["level"] == "WARN" && strings.Contains(msg, "ADMIN_TOKEN") {
-			warned = true
+		if entry["level"] == "WARN" && strings.Contains(msg, substring) {
+			return true
 		}
 	}
-	if !warned {
-		t.Errorf("no warning about the default admin token:\n%s", logs.String())
-	}
+	return false
 }
 
 func TestRunServeRejectsABadPort(t *testing.T) {

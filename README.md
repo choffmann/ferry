@@ -38,6 +38,18 @@ go build -o ferry ./cmd/ferry
 ./ferry serve
 ```
 
+Ein so gebautes Binary trägt keine Build-Informationen. `/version` antwortet dann mit
+leeren Feldern und beim Start steht eine Warnung im Log. Die drei Werte kommen über
+`-ldflags` hinein:
+
+```sh
+go build -ldflags "\
+  -X github.com/choffmann/ferry/internal/obs.version=$(git describe --tags --always) \
+  -X github.com/choffmann/ferry/internal/obs.commit=$(git rev-parse --short HEAD) \
+  -X github.com/choffmann/ferry/internal/obs.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  -o ferry ./cmd/ferry
+```
+
 Die API ist in `docs/api.md` beschrieben, die Chaos-Schnittstelle in
 `docs/chaos.md`.
 

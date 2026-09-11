@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-func TestMemoryStoreSatisfiesTheContract(t *testing.T) {
+func TestFakeSatisfiesTheContract(t *testing.T) {
 	runRepositoryContract(t, func(seed time.Time, now func() time.Time) Repository {
-		return newMemoryStore(seed, now)
+		return newFake(seed, now)
 	})
 }

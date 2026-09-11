@@ -10,7 +10,9 @@ import (
 	"github.com/choffmann/ferry/internal/domain"
 )
 
-type MemoryStore struct {
+// Fake is the repository the unit tests run against. The application itself has
+// run on Postgres since v0.3.0, so nothing outside a test builds one.
+type Fake struct {
 	mu           sync.Mutex
 	connections  []domain.Connection
 	departures   map[string]domain.Departure
@@ -20,14 +22,14 @@ type MemoryStore struct {
 	now          func() time.Time
 }
 
-func NewMemoryStore(now time.Time) *MemoryStore {
-	return newMemoryStore(now, func() time.Time { return time.Now().UTC() })
+func NewFake(seed time.Time) *Fake {
+	return newFake(seed, func() time.Time { return time.Now().UTC() })
 }
 
 // The seed date and the clock are separate: the timetable is built once for a
 // day, while the boarding deadline is checked against the moment of the request.
-func newMemoryStore(seed time.Time, now func() time.Time) *MemoryStore {
-	s := &MemoryStore{
+func newFake(seed time.Time, now func() time.Time) *Fake {
+	s := &Fake{
 		connections: domain.Connections(),
 		departures:  map[string]domain.Departure{},
 		bookings:    map[string]domain.Booking{},
@@ -40,11 +42,11 @@ func newMemoryStore(seed time.Time, now func() time.Time) *MemoryStore {
 	return s
 }
 
-func (s *MemoryStore) Connections(ctx context.Context) ([]domain.Connection, error) {
+func (s *Fake) Connections(ctx context.Context) ([]domain.Connection, error) {
 	return append([]domain.Connection(nil), s.connections...), nil
 }
 
-func (s *MemoryStore) Departures(ctx context.Context, connectionID string, from time.Time) ([]domain.Departure, error) {
+func (s *Fake) Departures(ctx context.Context, connectionID string, from time.Time) ([]domain.Departure, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -67,7 +69,7 @@ func (s *MemoryStore) Departures(ctx context.Context, connectionID string, from 
 	return out, nil
 }
 
-func (s *MemoryStore) Departure(ctx context.Context, id string) (domain.Departure, error) {
+func (s *Fake) Departure(ctx context.Context, id string) (domain.Departure, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -78,7 +80,7 @@ func (s *MemoryStore) Departure(ctx context.Context, id string) (domain.Departur
 	return d, nil
 }
 
-func (s *MemoryStore) Booking(ctx context.Context, id string) (domain.Booking, error) {
+func (s *Fake) Booking(ctx context.Context, id string) (domain.Booking, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -89,7 +91,7 @@ func (s *MemoryStore) Booking(ctx context.Context, id string) (domain.Booking, e
 	return b, nil
 }
 
-func (s *MemoryStore) Book(ctx context.Context, req domain.BookingRequest, opts domain.BookOptions) (domain.Booking, error) {
+func (s *Fake) Book(ctx context.Context, req domain.BookingRequest, opts domain.BookOptions) (domain.Booking, error) {
 	if err := req.Validate(); err != nil {
 		return domain.Booking{}, err
 	}

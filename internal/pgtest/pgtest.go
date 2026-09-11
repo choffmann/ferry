@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"net/url"
 	"os"
 	"testing"
 
@@ -20,23 +21,23 @@ const URLVar = "TEST_DATABASE_URL"
 // on the parent.
 func URL(t *testing.T) string {
 	t.Helper()
-	url := os.Getenv(URLVar)
-	if url == "" {
+	raw := os.Getenv(URLVar)
+	if raw == "" {
 		t.Skipf("%s is not set, skipping the integration test", URLVar)
 	}
-	return url
+	return raw
 }
 
-// Pool hands back a pool bound to a schema of its own. The schema is empty:
-// callers that need tables run the migrations themselves.
-func Pool(t *testing.T) *pgxpool.Pool {
+// DSN creates an empty schema and returns a connection string that resolves
+// unqualified table names inside it. The schema is dropped when the test ends.
+func DSN(t *testing.T) string {
 	t.Helper()
 
-	url := URL(t)
-	ctx := context.Background()
+	raw := URL(t)
 	schema := "t_" + randomSuffix(t)
+	ctx := context.Background()
 
-	admin, err := pgxpool.New(ctx, url)
+	admin, err := pgxpool.New(ctx, raw)
 	if err != nil {
 		t.Fatalf("connecting to %s: %v", URLVar, err)
 	}
@@ -44,25 +45,35 @@ func Pool(t *testing.T) *pgxpool.Pool {
 		admin.Close()
 		t.Fatalf("creating schema %s: %v", schema, err)
 	}
-
-	cfg, err := pgxpool.ParseConfig(url)
-	if err != nil {
-		t.Fatalf("parsing %s: %v", URLVar, err)
-	}
-	cfg.ConnConfig.RuntimeParams["search_path"] = schema
-
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		t.Fatalf("connecting to schema %s: %v", schema, err)
-	}
-
 	t.Cleanup(func() {
-		pool.Close()
 		if _, err := admin.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE"); err != nil {
 			t.Errorf("dropping schema %s: %v", schema, err)
 		}
 		admin.Close()
 	})
+
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		t.Fatalf("parsing %s: %v", URLVar, err)
+	}
+	q := parsed.Query()
+	// No space: url encoding would turn it into a plus and the backend would
+	// then look for a parameter called "+search_path".
+	q.Set("options", "-csearch_path="+schema)
+	parsed.RawQuery = q.Encode()
+	return parsed.String()
+}
+
+// Pool is DSN with a pool already open on it. The schema is empty: callers that
+// need tables run the migrations themselves.
+func Pool(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+
+	pool, err := pgxpool.New(context.Background(), DSN(t))
+	if err != nil {
+		t.Fatalf("connecting: %v", err)
+	}
+	t.Cleanup(pool.Close)
 	return pool
 }
 

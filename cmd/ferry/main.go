@@ -21,6 +21,10 @@ func main() {
 	switch os.Args[1] {
 	case "serve":
 		err = runServe(ctx, os.Args[2:], os.Getenv, os.Stdout)
+	case "migrate":
+		err = runMigrate(ctx, os.Args[2:], os.Getenv, os.Stdout)
+	case "seed":
+		err = runSeed(ctx, os.Args[2:], os.Getenv, os.Stdout)
 	case "load":
 		err = runLoad(ctx, os.Args[2:], os.Stdout)
 	default:
@@ -36,7 +40,9 @@ func main() {
 func usage() {
 	fmt.Fprint(os.Stderr, `ferry <command>
 
-  serve   starts the API server
-  load    generates load against a running instance
+  serve     starts the API server
+  migrate   applies the pending database migrations
+  seed      writes the connections and the timetable
+  load      generates load against a running instance
 `)
 }

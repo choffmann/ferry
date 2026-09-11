@@ -27,7 +27,7 @@ check_cmd() {
     fi
 }
 
-printf 'ferry check-env, Stufe Block 1\n\n'
+printf 'ferry check-env, Stufe Block 5\n\n'
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
@@ -49,6 +49,7 @@ check_cmd curl "curl --version" "Unter Debian/Ubuntu: apt install curl, unter ma
 check_cmd jq "jq --version" "Unter Debian/Ubuntu: apt install jq, unter macOS: brew install jq"
 check_cmd go "go version" "Installation: https://go.dev/dl/, mindestens Go 1.27"
 check_cmd docker "docker --version" "Docker Engine oder Docker Desktop, siehe Setup-Doku"
+check_cmd just "just --version" "Installation: https://github.com/casey/just#installation"
 
 if command -v docker >/dev/null 2>&1; then
     if docker info >/dev/null 2>&1; then
@@ -57,6 +58,16 @@ if command -v docker >/dev/null 2>&1; then
         bad "docker daemon nicht erreichbar"
         note "Docker Desktop starten, oder unter Linux: sudo systemctl start docker"
         note "Ohne sudo arbeiten: sudo usermod -aG docker \$USER, danach neu anmelden"
+    fi
+
+    # compose ist ein Unterbefehl, kein eigenes Programm, command -v findet es nicht.
+    if docker compose version >/dev/null 2>&1; then
+        ok "docker compose ($(docker compose version | head -n 1 | cut -c1-48))"
+    else
+        bad "docker compose"
+        note "Das Plugin fehlt. Docker Desktop bringt es mit, unter Debian/Ubuntu:"
+        note "apt install docker-compose-plugin"
+        note "Das alte docker-compose mit Bindestrich zaehlt nicht, es ist eine andere Fassung"
     fi
 fi
 

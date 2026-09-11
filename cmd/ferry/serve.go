@@ -35,10 +35,6 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 	}
 
 	logger := obs.NewLogger(stdout)
-	if cfg.AdminTokenIsDefault {
-		logger.Warn("ADMIN_TOKEN not set, using the default value",
-			"admin_token", config.DefaultAdminToken)
-	}
 
 	info := obs.Version()
 	if !info.Stamped() {

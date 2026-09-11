@@ -2,13 +2,13 @@ package httpapi
 
 import (
 	"context"
-	crand "crypto/rand"
-	"encoding/hex"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/choffmann/ferry/internal/chaos"
 	"github.com/choffmann/ferry/internal/obs"
@@ -23,14 +23,12 @@ func requestIDFrom(ctx context.Context) string {
 	return ""
 }
 
-// crypto/rand and math/rand/v2 are both called rand, hence the alias. The request
-// id wants the cryptographic one, the error-rate draw does not.
 func newRequestID() string {
-	var b [8]byte
-	if _, err := crand.Read(b[:]); err != nil {
+	id, err := uuid.NewRandom()
+	if err != nil {
 		return "unknown"
 	}
-	return hex.EncodeToString(b[:])
+	return id.String()
 }
 
 func requestID(next http.Handler) http.Handler {

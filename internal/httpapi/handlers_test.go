@@ -24,7 +24,7 @@ func newTestServer(t *testing.T) (http.Handler, *chaos.MemoryStore) {
 	t.Helper()
 	cs := chaos.NewMemoryStore()
 	h := NewRouter(Deps{
-		Repo:       store.NewMemoryStore(time.Now().UTC()),
+		Repo:       store.NewFake(time.Now().UTC()),
 		Chaos:      cs,
 		AdminToken: "test-token",
 		Logger:     obs.NewLogger(io.Discard),
@@ -334,7 +334,7 @@ func TestVersionMirrorsTheBuildStamp(t *testing.T) {
 func TestReadyzFailsWhenTheDatabaseDoesNot(t *testing.T) {
 	cs := chaos.NewMemoryStore()
 	h := NewRouter(Deps{
-		Repo:       store.NewMemoryStore(time.Now().UTC()),
+		Repo:       store.NewFake(time.Now().UTC()),
 		Chaos:      cs,
 		AdminToken: "test-token",
 		Logger:     obs.NewLogger(io.Discard),

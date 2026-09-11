@@ -28,6 +28,9 @@
           gotools
           golangci-lint
 
+          just
+          postgresql
+
           git
           curl
           jq

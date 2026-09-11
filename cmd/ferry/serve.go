@@ -52,16 +52,23 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 		return err
 	}
 
+	pool, err := store.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
 	chaosStore := chaos.NewMemoryStore()
 	leaker := chaos.NewLeaker(chaosStore, leakInterval)
 	go leaker.Run(ctx)
 
 	handler := httpapi.NewRouter(httpapi.Deps{
-		Repo:       store.NewMemoryStore(time.Now().In(zone)),
+		Repo:       store.NewPostgresStore(pool, zone),
 		Chaos:      chaosStore,
 		AdminToken: cfg.AdminToken,
 		Logger:     logger,
 		Tickets:    tickets,
+		Ping:       pool.Ping,
 	})
 
 	listenOn := *addr

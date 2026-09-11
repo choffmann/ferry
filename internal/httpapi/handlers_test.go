@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -327,5 +328,25 @@ func TestVersionMirrorsTheBuildStamp(t *testing.T) {
 	}
 	if got != obs.Version() {
 		t.Errorf("build info = %+v, want %+v", got, obs.Version())
+	}
+}
+
+func TestReadyzFailsWhenTheDatabaseDoesNot(t *testing.T) {
+	cs := chaos.NewMemoryStore()
+	h := NewRouter(Deps{
+		Repo:       store.NewMemoryStore(time.Now().UTC()),
+		Chaos:      cs,
+		AdminToken: "test-token",
+		Logger:     obs.NewLogger(io.Discard),
+		Tickets:    testRenderer(t),
+		Draw:       func() float64 { return 1 },
+		Ping:       func(context.Context) error { return errors.New("connection refused") },
+	})
+
+	if rec := do(t, h, http.MethodGet, "/readyz", ""); rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("readyz = %d although the database does not answer, want 503", rec.Code)
+	}
+	if rec := do(t, h, http.MethodGet, "/healthz", ""); rec.Code != http.StatusOK {
+		t.Errorf("healthz = %d, the process is alive either way", rec.Code)
 	}
 }

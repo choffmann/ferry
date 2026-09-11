@@ -151,11 +151,24 @@ func (d Deps) healthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// The readiness probe may not outlive the interval a probe is given.
+const readinessTimeout = 2 * time.Second
+
 func (d Deps) readyz(w http.ResponseWriter, r *http.Request) {
 	s, err := d.Chaos.Get(r.Context())
 	if err != nil || !chaos.Ready(s) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not ready"})
 		return
+	}
+	if d.Ping != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), readinessTimeout)
+		defer cancel()
+		if err := d.Ping(ctx); err != nil {
+			obs.LoggerFrom(r.Context()).Warn("database is not reachable", "error", err)
+			writeJSON(w, http.StatusServiceUnavailable,
+				map[string]string{"status": "database unreachable"})
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }

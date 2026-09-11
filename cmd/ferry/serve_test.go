@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/choffmann/ferry/internal/pgtest"
 )
 
 // These tests run in cmd/ferry, so ASSETS_DIR points at the directory in the
@@ -28,30 +30,41 @@ func env(vars map[string]string) func(string) string {
 	return func(k string) string { return base[k] }
 }
 
+const unreachableDatabase = "postgres://ferry:ferry@127.0.0.1:1/ferry?sslmode=disable&connect_timeout=2"
+
 // Cases that only check the configuration need a well-formed address, not a
 // database behind it.
 func databaseURL() string {
 	if url := os.Getenv("TEST_DATABASE_URL"); url != "" {
 		return url
 	}
-	return "postgres://ferry:ferry@127.0.0.1:1/ferry?sslmode=disable&connect_timeout=2"
+	return unreachableDatabase
 }
 
-func requireDatabase(t *testing.T) {
+// readyDatabase is what the compose file of a team has to arrange too: schema
+// first, then data, then the server.
+func readyDatabase(t *testing.T) string {
 	t.Helper()
-	if os.Getenv("TEST_DATABASE_URL") == "" {
-		t.Skip("TEST_DATABASE_URL is not set, skipping the integration test")
+
+	dsn := pgtest.DSN(t)
+	e := env(map[string]string{"DATABASE_URL": dsn})
+	if err := runMigrate(context.Background(), nil, e, io.Discard); err != nil {
+		t.Fatalf("migrate: %v", err)
 	}
+	if err := runSeed(context.Background(), nil, e, io.Discard); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	return dsn
 }
 
 func TestRunServeAnswersAndShutsDown(t *testing.T) {
-	requireDatabase(t)
+	e := env(map[string]string{"DATABASE_URL": readyDatabase(t)})
 	ctx, cancel := context.WithCancel(context.Background())
 	var logs bytes.Buffer
 
 	done := make(chan error, 1)
 	go func() {
-		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18081"}, env(nil), &logs)
+		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18081"}, e, &logs)
 	}()
 
 	waitForHealth(t, "http://127.0.0.1:18081/healthz")
@@ -65,6 +78,18 @@ func TestRunServeAnswersAndShutsDown(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, body %s", resp.StatusCode, body)
+	}
+	if !strings.Contains(string(body), "FL-SO") {
+		t.Errorf("the seeded connections are missing from %s", body)
+	}
+
+	ready, err := client.Get("http://127.0.0.1:18081/readyz")
+	if err != nil {
+		t.Fatalf("GET /readyz: %v", err)
+	}
+	ready.Body.Close()
+	if ready.StatusCode != http.StatusOK {
+		t.Errorf("readyz = %d with a database behind it, want 200", ready.StatusCode)
 	}
 
 	cancel()
@@ -93,13 +118,13 @@ func TestRunServeStopsWhenARequiredVariableIsMissing(t *testing.T) {
 }
 
 func TestRunServeWarnsAboutAnUnstampedBinary(t *testing.T) {
-	requireDatabase(t)
+	e := env(map[string]string{"DATABASE_URL": readyDatabase(t)})
 	ctx, cancel := context.WithCancel(context.Background())
 	var logs bytes.Buffer
 
 	done := make(chan error, 1)
 	go func() {
-		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18083"}, env(nil), &logs)
+		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18083"}, e, &logs)
 	}()
 	waitForHealth(t, "http://127.0.0.1:18083/healthz")
 	cancel()
@@ -158,4 +183,18 @@ func waitForHealth(t *testing.T, url string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("%s never became healthy", url)
+}
+
+// Waiting for the database is the job of the topology, so an unreachable one is
+// a startup error. The timeout catches the opposite outcome, a server that came
+// up regardless and would otherwise run until the test binary is killed.
+func TestRunServeStopsWhenTheDatabaseIsUnreachable(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := runServe(ctx, []string{"-addr", "127.0.0.1:18084"},
+		env(map[string]string{"DATABASE_URL": unreachableDatabase}), io.Discard)
+	if err == nil {
+		t.Fatal("runServe without a reachable database returned no error")
+	}
 }

@@ -131,7 +131,7 @@ func runRepositoryContract(t *testing.T, newRepo func(seed time.Time, now func()
 		if err != nil {
 			t.Fatalf("Booking: %v", err)
 		}
-		if again != b {
+		if !sameBooking(again, b) {
 			t.Errorf("read back %+v, wrote %+v", again, b)
 		}
 
@@ -275,6 +275,16 @@ func runRepositoryContract(t *testing.T, newRepo func(seed time.Time, now func()
 			t.Errorf("booked = %d, want exactly %d", after.Booked, domain.SeatsPerDeparture)
 		}
 	})
+}
+
+// A booking that came back from Postgres carries its timestamp in another
+// location than the one that went in, so == would never hold.
+func sameBooking(a, b domain.Booking) bool {
+	return a.ID == b.ID &&
+		a.DepartureID == b.DepartureID &&
+		a.Passengers == b.Passengers &&
+		a.Status == b.Status &&
+		a.CreatedAt.Equal(b.CreatedAt)
 }
 
 func closedDeparture(t *testing.T, seed, now time.Time) domain.Departure {

@@ -15,16 +15,24 @@ import (
 
 const URLVar = "TEST_DATABASE_URL"
 
-// Pool skips the test when TEST_DATABASE_URL is unset. The schema it creates is
-// empty: callers that need tables run the migrations themselves.
-func Pool(t *testing.T) *pgxpool.Pool {
+// URL skips the test when TEST_DATABASE_URL is unset. Call it from the test
+// itself when the pool is built inside a subtest, otherwise the skip would land
+// on the parent.
+func URL(t *testing.T) string {
 	t.Helper()
-
 	url := os.Getenv(URLVar)
 	if url == "" {
 		t.Skipf("%s is not set, skipping the integration test", URLVar)
 	}
+	return url
+}
 
+// Pool hands back a pool bound to a schema of its own. The schema is empty:
+// callers that need tables run the migrations themselves.
+func Pool(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+
+	url := URL(t)
 	ctx := context.Background()
 	schema := "t_" + randomSuffix(t)
 

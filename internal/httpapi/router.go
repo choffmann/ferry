@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
@@ -17,6 +18,9 @@ type Deps struct {
 	Tickets    *ticket.Renderer
 	// Draw supplies the random number for the error-rate switch. Tests pin it.
 	Draw func() float64
+	// Ping reports whether the database answers. A nil Ping means readiness
+	// says nothing about it.
+	Ping func(context.Context) error
 }
 
 // NewRouter is the single place where routes are registered, so it must not be

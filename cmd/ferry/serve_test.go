@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,20 +14,38 @@ import (
 )
 
 // These tests run in cmd/ferry, so ASSETS_DIR points at the directory in the
-// repository root unless the case sets it itself.
+// repository root unless the case sets it itself. A case that wants a variable
+// gone overrides it with the empty string.
 func env(vars map[string]string) func(string) string {
-	return func(k string) string {
-		if v, ok := vars[k]; ok {
-			return v
-		}
-		if k == "ASSETS_DIR" {
-			return filepath.Join("..", "..", "assets")
-		}
-		return ""
+	base := map[string]string{
+		"ADMIN_TOKEN":  "test-token",
+		"DATABASE_URL": databaseURL(),
+		"ASSETS_DIR":   filepath.Join("..", "..", "assets"),
+	}
+	for k, v := range vars {
+		base[k] = v
+	}
+	return func(k string) string { return base[k] }
+}
+
+// Cases that only check the configuration need a well-formed address, not a
+// database behind it.
+func databaseURL() string {
+	if url := os.Getenv("TEST_DATABASE_URL"); url != "" {
+		return url
+	}
+	return "postgres://ferry:ferry@127.0.0.1:1/ferry?sslmode=disable&connect_timeout=2"
+}
+
+func requireDatabase(t *testing.T) {
+	t.Helper()
+	if os.Getenv("TEST_DATABASE_URL") == "" {
+		t.Skip("TEST_DATABASE_URL is not set, skipping the integration test")
 	}
 }
 
 func TestRunServeAnswersAndShutsDown(t *testing.T) {
+	requireDatabase(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	var logs bytes.Buffer
 
@@ -59,24 +78,22 @@ func TestRunServeAnswersAndShutsDown(t *testing.T) {
 	}
 }
 
-func TestRunServeWarnsAboutTheDefaultToken(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	var logs bytes.Buffer
-
-	done := make(chan error, 1)
-	go func() {
-		done <- runServe(ctx, []string{"-addr", "127.0.0.1:18082"}, env(nil), &logs)
-	}()
-	waitForHealth(t, "http://127.0.0.1:18082/healthz")
-	cancel()
-	<-done
-
-	if !warnedAbout(logs.String(), "ADMIN_TOKEN") {
-		t.Errorf("no warning about the default admin token:\n%s", logs.String())
+func TestRunServeStopsWhenARequiredVariableIsMissing(t *testing.T) {
+	for _, name := range []string{"ADMIN_TOKEN", "DATABASE_URL"} {
+		err := runServe(context.Background(), nil,
+			env(map[string]string{name: ""}), io.Discard)
+		if err == nil {
+			t.Errorf("runServe without %s returned no error", name)
+			continue
+		}
+		if !strings.Contains(err.Error(), name) {
+			t.Errorf("error %q does not name %s", err, name)
+		}
 	}
 }
 
 func TestRunServeWarnsAboutAnUnstampedBinary(t *testing.T) {
+	requireDatabase(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	var logs bytes.Buffer
 

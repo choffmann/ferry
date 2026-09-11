@@ -3,11 +3,11 @@
 Alle Antworten sind JSON. Fehler haben die Form
 
 ```json
-{ "error": "departure is sold out", "request_id": "3f9a1c4e2b7d8005" }
+{ "error": "departure is sold out", "request_id": "7c3f1a6e-9d24-4b58-8a01-5e2f0b7c4d19" }
 ```
 
 Jede Antwort trägt den Kopf `X-Request-Id`. Wird er mitgeschickt, übernimmt der
-Server ihn, sonst erzeugt er einen.
+Server ihn unverändert, sonst erzeugt er eine UUID.
 
 ## `GET /connections`
 

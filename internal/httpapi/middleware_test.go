@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/choffmann/ferry/internal/chaos"
 	"github.com/choffmann/ferry/internal/obs"
 )
@@ -216,5 +218,18 @@ func TestWriteErrorCarriesTheRequestID(t *testing.T) {
 	}
 	if got := rec.Header().Get("Content-Type"); got != "application/json" {
 		t.Errorf("Content-Type = %q", got)
+	}
+}
+
+func TestGeneratedRequestIDIsAUUID(t *testing.T) {
+	var seen string
+	h := requestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = requestIDFrom(r.Context())
+	}))
+
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/connections", nil))
+
+	if err := uuid.Validate(seen); err != nil {
+		t.Errorf("request id %q is not a uuid: %v", seen, err)
 	}
 }

@@ -33,10 +33,31 @@ mitgelieferte `.envrc`. Sie wächst mit den Releases mit. Nötig ist sie nicht,
 
 ## Bauen und starten
 
+Die Anwendung braucht eine Postgres-Datenbank. Getestet wird gegen Postgres 17.
+
 ```sh
 go build -o ferry ./cmd/ferry
+
+export DATABASE_URL='postgres://ferry:ferry@localhost:5432/ferry?sslmode=disable'
+export ADMIN_TOKEN='local-dev'
+
+./ferry migrate   # spielt das Schema ein
+./ferry seed      # schreibt Verbindungen und Fahrplan
 ./ferry serve
 ```
+
+Die drei Schritte gehören in diese Reihenfolge. `migrate` und `seed` sind beide
+wiederholbar und beenden sich mit Status 0, auch wenn es nichts zu tun gab.
+
+Ohne erreichbare Datenbank startet `ferry serve` nicht und wartet auch nicht. Wann
+die Datenbank bereitsteht, gehört in die Beschreibung der Umgebung.
+
+| Variable | Vorgabe | Bedeutung |
+|---|---|---|
+| `DATABASE_URL` | keine, Pflicht | Verbindungszeichenkette zur Datenbank |
+| `ADMIN_TOKEN` | keine, Pflicht für `serve` | Bearer-Token der Chaos-Schnittstelle |
+| `PORT` | `8080` | Port, auf dem der HTTP-Server lauscht |
+| `ASSETS_DIR` | `./assets` | Verzeichnis mit den Vorlagen |
 
 Ein so gebautes Binary trägt keine Build-Informationen. `/version` antwortet dann mit
 leeren Feldern und beim Start steht eine Warnung im Log. Die drei Werte kommen über
@@ -59,7 +80,7 @@ gehört damit zum Lieferumfang: wo nur das Binary liegt, startet der Prozess nic
 `ASSETS_DIR` zeigt auf einen anderen Pfad.
 
 Die API ist in `docs/api.md` beschrieben, die Chaos-Schnittstelle in
-`docs/chaos.md`.
+`docs/chaos.md`, Schema und Migrationen in `docs/database.md`.
 
 ## Referenzlösungen
 

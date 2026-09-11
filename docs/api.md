@@ -9,6 +9,10 @@ Alle Antworten sind JSON. Fehler haben die Form
 Jede Antwort trägt den Kopf `X-Request-Id`. Wird er mitgeschickt, übernimmt der
 Server ihn unverändert, sonst erzeugt er eine UUID.
 
+Verbindungen, Abfahrten und Buchungen liegen seit v0.3.0 in Postgres. Eine
+angelegte Buchung überlebt damit einen Neustart. Schema und Fahrplan beschreibt
+`database.md`.
+
 ## `GET /connections`
 
 Liefert alle Verbindungen.
@@ -100,6 +104,11 @@ Verzeichnis. Fehlt die Vorlage, startet der Prozess nicht.
 | `GET /healthz` | `200`, solange der Prozess läuft |
 | `GET /readyz` | `200` wenn bereit, sonst `503` |
 | `GET /version` | Version, Git-SHA und Build-Zeit |
+
+`/readyz` prüft zweierlei: den Bereitschaftsschalter der Chaos-Schnittstelle und
+die Verbindung zur Datenbank. Antwortet die Datenbank nicht, steht im Feld
+`status` der Wert `database unreachable`. `/healthz` bleibt davon unberührt, es
+sagt nur, dass der Prozess lebt.
 
 ```json
 { "version": "v0.2.0", "commit": "1a2b3c4", "build_time": "2026-10-09T08:00:00Z" }

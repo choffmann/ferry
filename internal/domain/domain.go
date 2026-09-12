@@ -45,14 +45,16 @@ const (
 )
 
 type Booking struct {
-	ID            string        `json:"id"`
-	DepartureID   string        `json:"departure_id"`
-	Passengers    int           `json:"passengers"`
-	AmountCents   int           `json:"amount_cents"`
-	Status        BookingStatus `json:"status"`
-	PaymentRef    string        `json:"payment_ref,omitempty"`
-	FailureReason string        `json:"failure_reason,omitempty"`
-	CreatedAt     time.Time     `json:"created_at"`
+	ID          string        `json:"id"`
+	DepartureID string        `json:"departure_id"`
+	Passengers  int           `json:"passengers"`
+	AmountCents int           `json:"amount_cents"`
+	Status      BookingStatus `json:"status"`
+	// Both are empty until the worker has settled the booking, and only one of
+	// them is ever filled.
+	PaymentRef    string    `json:"payment_ref,omitempty"`
+	FailureReason string    `json:"failure_reason,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // Settlement is the outcome the worker writes back after the payment service

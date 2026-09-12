@@ -78,8 +78,8 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	}
 }
 
-// Every eighth booking is a group large enough for the payment service to turn
-// it down, so the status failed shows up under load at all.
+// One booking in eight draws a group of six to nine. Of those four sizes only
+// six stays within the card limit, so declines make up 3 in 32 of all bookings.
 func groupSize(draw func(int) int) int {
 	if draw(8) == 0 {
 		return 6 + draw(4)

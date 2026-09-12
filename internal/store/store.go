@@ -20,3 +20,11 @@ type Repository interface {
 	Booking(ctx context.Context, id string) (domain.Booking, error)
 	Book(ctx context.Context, req domain.BookingRequest, opts domain.BookOptions) (domain.Booking, error)
 }
+
+// Queue is the port the worker settles bookings through. Claim marks what it
+// hands out, so a second worker gets different rows.
+type Queue interface {
+	Claim(ctx context.Context, limit int) ([]domain.Booking, error)
+	Settle(ctx context.Context, s domain.Settlement) error
+	Release(ctx context.Context, bookingID string) error
+}

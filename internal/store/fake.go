@@ -19,6 +19,7 @@ type Fake struct {
 	departureIDs []string
 	bookings     map[string]domain.Booking
 	nextBooking  int
+	claimed      map[string]time.Time
 	now          func() time.Time
 }
 
@@ -33,6 +34,7 @@ func newFake(seed time.Time, now func() time.Time) *Fake {
 		connections: domain.Connections(),
 		departures:  map[string]domain.Departure{},
 		bookings:    map[string]domain.Booking{},
+		claimed:     map[string]time.Time{},
 		now:         now,
 	}
 	for _, d := range domain.Departures(seed) {
@@ -115,9 +117,67 @@ func (s *Fake) Book(ctx context.Context, req domain.BookingRequest, opts domain.
 		ID:          fmt.Sprintf("bk-%06d", s.nextBooking),
 		DepartureID: d.ID,
 		Passengers:  req.Passengers,
-		Status:      domain.StatusConfirmed,
+		AmountCents: domain.FareCents(req.Passengers),
+		Status:      domain.StatusPending,
 		CreatedAt:   s.now(),
 	}
 	s.bookings[b.ID] = b
 	return b, nil
+}
+
+func (s *Fake) Claim(ctx context.Context, limit int) ([]domain.Booking, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := s.now()
+	var open []domain.Booking
+	for _, b := range s.bookings {
+		if b.Status != domain.StatusPending {
+			continue
+		}
+		if at, ok := s.claimed[b.ID]; ok && at.After(now.Add(-claimStaleAfter)) {
+			continue
+		}
+		open = append(open, b)
+	}
+	// The ids run with the insertion order, which is what Postgres orders by.
+	// Sorting by CreatedAt would tie under a fixed test clock.
+	sort.Slice(open, func(i, j int) bool { return open[i].ID < open[j].ID })
+	if len(open) > limit {
+		open = open[:limit]
+	}
+	for _, b := range open {
+		s.claimed[b.ID] = now
+	}
+	return open, nil
+}
+
+func (s *Fake) Settle(ctx context.Context, st domain.Settlement) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	b, ok := s.bookings[st.BookingID]
+	if !ok || b.Status != domain.StatusPending {
+		return fmt.Errorf("%w: open booking %s", ErrNotFound, st.BookingID)
+	}
+
+	b.Status = st.Status
+	b.PaymentRef = st.Reference
+	b.FailureReason = st.Reason
+	s.bookings[b.ID] = b
+	delete(s.claimed, b.ID)
+
+	if st.Status == domain.StatusFailed {
+		d := s.departures[b.DepartureID]
+		d.Booked -= b.Passengers
+		s.departures[d.ID] = d
+	}
+	return nil
+}
+
+func (s *Fake) Release(ctx context.Context, bookingID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.claimed, bookingID)
+	return nil
 }

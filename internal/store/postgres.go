@@ -101,9 +101,11 @@ func (s *PostgresStore) Departure(ctx context.Context, id string) (domain.Depart
 func (s *PostgresStore) Booking(ctx context.Context, id string) (domain.Booking, error) {
 	var b domain.Booking
 	err := s.pool.QueryRow(ctx, `
-SELECT id, departure_id, passengers, status, created_at
+SELECT id, departure_id, passengers, amount_cents, status,
+       COALESCE(payment_ref, ''), COALESCE(failure_reason, ''), created_at
 FROM bookings
-WHERE id = $1`, id).Scan(&b.ID, &b.DepartureID, &b.Passengers, &b.Status, &b.CreatedAt)
+WHERE id = $1`, id).Scan(&b.ID, &b.DepartureID, &b.Passengers, &b.AmountCents,
+		&b.Status, &b.PaymentRef, &b.FailureReason, &b.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Booking{}, fmt.Errorf("%w: booking %s", ErrNotFound, id)
 	}
@@ -151,13 +153,14 @@ func (s *PostgresStore) Book(ctx context.Context, req domain.BookingRequest, opt
 	b := domain.Booking{
 		DepartureID: d.ID,
 		Passengers:  req.Passengers,
-		Status:      domain.StatusConfirmed,
+		AmountCents: domain.FareCents(req.Passengers),
+		Status:      domain.StatusPending,
 	}
 	if err := tx.QueryRow(ctx, `
-INSERT INTO bookings (departure_id, passengers, status, created_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO bookings (departure_id, passengers, amount_cents, status, created_at)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id, created_at`,
-		d.ID, req.Passengers, domain.StatusConfirmed, s.now()).
+		d.ID, req.Passengers, b.AmountCents, domain.StatusPending, s.now()).
 		Scan(&b.ID, &b.CreatedAt); err != nil {
 		return domain.Booking{}, fmt.Errorf("writing the booking: %w", err)
 	}

@@ -160,7 +160,7 @@ func TestBookingRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(created.Body.Bytes(), &b); err != nil {
 		t.Fatalf("booking: %v", err)
 	}
-	if b.Status != domain.StatusConfirmed {
+	if b.Status != domain.StatusPending {
 		t.Errorf("status = %q", b.Status)
 	}
 

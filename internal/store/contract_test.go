@@ -123,8 +123,8 @@ func runRepositoryContract(t *testing.T, newRepo func(seed time.Time, now func()
 		if err != nil {
 			t.Fatalf("Book: %v", err)
 		}
-		if b.Status != domain.StatusConfirmed {
-			t.Errorf("status = %q, want %q", b.Status, domain.StatusConfirmed)
+		if b.Status != domain.StatusPending {
+			t.Errorf("status = %q, want %q", b.Status, domain.StatusPending)
 		}
 
 		again, err := r.Booking(context.Background(), b.ID)
@@ -283,6 +283,7 @@ func sameBooking(a, b domain.Booking) bool {
 	return a.ID == b.ID &&
 		a.DepartureID == b.DepartureID &&
 		a.Passengers == b.Passengers &&
+		a.AmountCents == b.AmountCents &&
 		a.Status == b.Status &&
 		a.CreatedAt.Equal(b.CreatedAt)
 }

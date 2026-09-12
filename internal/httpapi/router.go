@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/choffmann/ferry/internal/chaos"
+	"github.com/choffmann/ferry/internal/httpmw"
 	"github.com/choffmann/ferry/internal/store"
 	"github.com/choffmann/ferry/internal/ticket"
 )
@@ -47,8 +48,8 @@ func NewRouter(d Deps) http.Handler {
 
 	var h http.Handler = mux
 	h = chaosMiddleware(d.Chaos, d.Draw)(h)
-	h = logging(d.Logger)(h)
-	h = requestID(h)
-	h = recoverer(d.Logger)(h)
+	h = httpmw.Logging(d.Logger)(h)
+	h = httpmw.RequestID(h)
+	h = httpmw.Recoverer(d.Logger)(h)
 	return h
 }

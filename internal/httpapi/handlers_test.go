@@ -15,6 +15,7 @@ import (
 
 	"github.com/choffmann/ferry/internal/chaos"
 	"github.com/choffmann/ferry/internal/domain"
+	"github.com/choffmann/ferry/internal/httpmw"
 	"github.com/choffmann/ferry/internal/obs"
 	"github.com/choffmann/ferry/internal/store"
 	"github.com/choffmann/ferry/internal/ticket"
@@ -307,7 +308,7 @@ func TestTicketForAnUnknownBookingIsNotFound(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", rec.Code)
 	}
-	var body errorBody
+	var body httpmw.ErrorBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("body is not the JSON error format: %s", rec.Body)
 	}

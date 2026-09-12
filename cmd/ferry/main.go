@@ -21,6 +21,8 @@ func main() {
 	switch os.Args[1] {
 	case "serve":
 		err = runServe(ctx, os.Args[2:], os.Getenv, os.Stdout)
+	case "worker":
+		err = runWorker(ctx, os.Args[2:], os.Getenv, os.Stdout)
 	case "migrate":
 		err = runMigrate(ctx, os.Args[2:], os.Getenv, os.Stdout)
 	case "seed":
@@ -41,6 +43,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `ferry <command>
 
   serve     starts the API server
+  worker    settles the open bookings against the payment service
   migrate   applies the pending database migrations
   seed      writes the connections and the timetable
   load      generates load against a running instance

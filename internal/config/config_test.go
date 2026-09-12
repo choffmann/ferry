@@ -126,3 +126,28 @@ func TestPaymentsRejectsAPortThatIsNotANumber(t *testing.T) {
 		t.Error("a PORT of \"eighty\" was accepted")
 	}
 }
+
+func TestWorkerNamesTheVariableItIsMissing(t *testing.T) {
+	env := map[string]string{"DATABASE_URL": "postgres://localhost/ferry"}
+	_, err := Worker(func(k string) string { return env[k] })
+	if err == nil {
+		t.Fatal("a worker without PAYMENTS_URL was accepted")
+	}
+	if !strings.Contains(err.Error(), "PAYMENTS_URL") {
+		t.Errorf("the error does not name PAYMENTS_URL: %v", err)
+	}
+}
+
+func TestWorkerReadsBothAddresses(t *testing.T) {
+	env := map[string]string{
+		"DATABASE_URL": "postgres://localhost/ferry",
+		"PAYMENTS_URL": "http://payments:8080",
+	}
+	cfg, err := Worker(func(k string) string { return env[k] })
+	if err != nil {
+		t.Fatalf("Worker: %v", err)
+	}
+	if cfg.DatabaseURL != env["DATABASE_URL"] || cfg.PaymentsURL != env["PAYMENTS_URL"] {
+		t.Errorf("config = %+v, want both addresses", cfg)
+	}
+}

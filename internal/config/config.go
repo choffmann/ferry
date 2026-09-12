@@ -26,6 +26,11 @@ type PaymentsConfig struct {
 	Port int
 }
 
+type WorkerConfig struct {
+	DatabaseURL string
+	PaymentsURL string
+}
+
 // Load takes the lookup function instead of calling os.Getenv, so every case is
 // testable without touching the process environment.
 func Load(getenv func(string) string) (Config, error) {
@@ -66,6 +71,20 @@ func Payments(getenv func(string) string) (PaymentsConfig, error) {
 		return PaymentsConfig{}, err
 	}
 	return PaymentsConfig{Port: p}, nil
+}
+
+// Worker reads what the second workload needs. It gets no admin token: it does
+// not serve the chaos interface.
+func Worker(getenv func(string) string) (WorkerConfig, error) {
+	url, err := DatabaseURL(getenv)
+	if err != nil {
+		return WorkerConfig{}, err
+	}
+	payments := getenv("PAYMENTS_URL")
+	if payments == "" {
+		return WorkerConfig{}, missing("PAYMENTS_URL", "the address of the payment service")
+	}
+	return WorkerConfig{DatabaseURL: url, PaymentsURL: payments}, nil
 }
 
 func port(getenv func(string) string) (int, error) {

@@ -130,6 +130,43 @@ func TestTickLeavesTheBookingOpenWhenThePaymentServiceIsDown(t *testing.T) {
 	}
 }
 
+// stubCharger is a hand-written Charger: the real payments.Client can never
+// return a status other than approved or declined, but any other
+// implementation of the exported Charger interface can.
+type stubCharger struct {
+	res payments.ChargeResponse
+}
+
+func (s stubCharger) Charge(context.Context, payments.ChargeRequest) (payments.ChargeResponse, error) {
+	return s.res, nil
+}
+
+func TestTickLeavesTheBookingOpenOnAnUnrecognisedStatus(t *testing.T) {
+	f, b := bookedFake(t, 2)
+	w := worker.New(f, stubCharger{res: payments.ChargeResponse{Status: "pending"}},
+		obs.NewLogger(&bytes.Buffer{}))
+
+	if _, err := w.Tick(context.Background()); err != nil {
+		t.Fatalf("Tick: %v", err)
+	}
+
+	got, err := f.Booking(context.Background(), b.ID)
+	if err != nil {
+		t.Fatalf("Booking: %v", err)
+	}
+	if got.Status != domain.StatusPending {
+		t.Fatalf("status = %q, want pending", got.Status)
+	}
+
+	claimed, err := f.Claim(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+	if len(claimed) != 1 {
+		t.Errorf("the booking could not be claimed again: %+v", claimed)
+	}
+}
+
 func TestTickReportsNothingToDoOnAnEmptyQueue(t *testing.T) {
 	srv := httptest.NewServer(payments.NewRouter(obs.NewLogger(&bytes.Buffer{})))
 	defer srv.Close()

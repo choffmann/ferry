@@ -4,6 +4,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -90,21 +91,33 @@ func (w *Worker) settle(ctx context.Context, b domain.Booking) bool {
 		// booking goes back into the queue instead of being marked failed.
 		w.logger.Warn("the payment service did not answer, the booking stays open",
 			"booking_id", b.ID, "error", err)
-		if err := w.queue.Release(ctx, b.ID); err != nil {
-			w.logger.Error("the claim could not be released",
-				"booking_id", b.ID, "error", err)
-		}
-		return false
+		return w.releaseAndKeepOpen(ctx, b.ID)
 	}
 
 	s := domain.Settlement{BookingID: b.ID}
-	if res.Status == payments.Approved {
+	switch res.Status {
+	case payments.Approved:
 		s.Status, s.Reference = domain.StatusConfirmed, res.Reference
-	} else {
+	case payments.Declined:
 		s.Status, s.Reason = domain.StatusFailed, res.Reason
+	default:
+		// Charger is an exported interface; a status that is neither approved
+		// nor declined is treated like a silent outage, not a decline, so an
+		// implementation other than payments.Client cannot fail bookings by
+		// returning something unexpected.
+		w.logger.Warn("the payment service answered with an unrecognised status, the booking stays open",
+			"booking_id", b.ID, "status", res.Status)
+		return w.releaseAndKeepOpen(ctx, b.ID)
 	}
 
 	if err := w.queue.Settle(ctx, s); err != nil {
+		// A stale claim can be picked up by two workers; the loser's Settle
+		// matches no row and is a benign race, not a write failure.
+		if errors.Is(err, store.ErrNotFound) {
+			w.logger.Info("the booking was already settled by another worker",
+				"booking_id", b.ID, "error", err)
+			return false
+		}
 		w.logger.Error("the outcome could not be written back",
 			"booking_id", b.ID, "status", s.Status, "error", err)
 		return false
@@ -112,4 +125,12 @@ func (w *Worker) settle(ctx context.Context, b domain.Booking) bool {
 	w.logger.Info("booking settled",
 		"booking_id", b.ID, "status", s.Status, "amount_cents", b.AmountCents)
 	return true
+}
+
+func (w *Worker) releaseAndKeepOpen(ctx context.Context, bookingID string) bool {
+	if err := w.queue.Release(ctx, bookingID); err != nil {
+		w.logger.Error("the claim could not be released",
+			"booking_id", bookingID, "error", err)
+	}
+	return false
 }

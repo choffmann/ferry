@@ -1,7 +1,8 @@
 # Datenbank
 
 Seit v0.3.0 liegt der Zustand in Postgres. Getestet wird gegen Postgres 17. Die
-Anwendung braucht `DATABASE_URL`, ohne die Variable startet kein Unterbefehl.
+Anwendung braucht `DATABASE_URL`. Ohne die Variable starten `serve`, `worker`,
+`migrate` und `seed` nicht.
 
 ## Schema
 

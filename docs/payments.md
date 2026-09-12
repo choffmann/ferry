@@ -7,8 +7,8 @@ Abfahrten, Plätzen oder Fahrplänen.
 
 Er ist auch kein weiterer Unterbefehl von `ferry`. Sein Quellcode liegt unter
 `cmd/payments`, das Binary heißt `payments` und wird getrennt gebaut, gestartet
-und ausgeliefert. Wer `ferry serve` und `ferry worker` betreibt, betreibt damit
-noch keinen Zahlungsdienst.
+und ausgeliefert. Es ist ein eigener Prozess, der neben `ferry serve` und
+`ferry worker` laufen muss.
 
 Aufgerufen wird er vom Worker. Die API spricht nicht mit ihm. Der Weg einer
 Buchung durch die drei Zustände steht in `api.md`.
@@ -49,9 +49,10 @@ Timeout oder ein `500` ist keine solche Auskunft. Danach weiß der Aufrufer
 nicht, ob abgerechnet wurde.
 
 Der Worker trennt genau an dieser Linie. Er nimmt eine `200`-Antwort als
-Ergebnis und schreibt sie in die Buchung. Jeder andere Statuscode, jeder
-Verbindungsfehler und jede unlesbare Antwort ist für ihn ein Fehler, nach dem
-die Buchung offen bleibt.
+Ergebnis und schreibt sie in die Buchung. Ein Fehler, nach dem die Buchung offen
+bleibt, ist für ihn jeder andere Statuscode, jeder Verbindungsfehler, eine
+unlesbare Antwort und auch eine lesbare Antwort, deren `status` weder
+`approved` noch `declined` lautet.
 
 ## Das Kartenlimit
 
@@ -71,9 +72,8 @@ Sechs Personen treffen das Limit genau und werden genehmigt. Ab sieben Personen
 liegt der Betrag darüber, die Buchung wird abgelehnt. Weil `passengers` bis 9
 reicht, ist die Grenze über die normale API erreichbar.
 
-Das Limit ist eine Geschäftsregel, keine Eigenschaft der Umgebung, in der der
-Dienst läuft. Es steht deshalb als Konstante im Code und ist nicht
-konfigurierbar.
+Das Limit ändert sich nicht mit der Umgebung, in der der Dienst läuft. Es steht
+deshalb als Konstante im Code und ist nicht konfigurierbar.
 
 ## Betrieb
 
@@ -104,9 +104,8 @@ Sie wird dann ein zweites Mal abgerechnet.
 
 Das ist hingenommen und kein Versehen. `Decide` entscheidet allein anhand von
 `amount_cents`. Der Dienst führt kein Konto, merkt sich keine Buchungs-ID und
-bucht nichts ab. Ein zweiter Aufruf mit derselben `booking_id` ist für ihn ein
-neuer Vorgang und liefert eine neue Referenz.
-
-Ein Zahlungsdienst, der Geld bewegt, würde `booking_id` als Idempotenzschlüssel
-führen und den zweiten Aufruf auf die erste Zahlung abbilden. Einen solchen
-Schlüssel gibt es hier nicht.
+bucht nichts ab. Ein Zahlungsdienst, der Geld bewegt, würde `booking_id` als
+Idempotenzschlüssel führen und den zweiten Aufruf auf die erste Zahlung
+abbilden. Einen solchen Schlüssel gibt es hier nicht, ein zweiter Aufruf mit
+derselben `booking_id` ist für den Dienst ein neuer Vorgang und liefert eine
+neue Referenz.

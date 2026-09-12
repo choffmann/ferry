@@ -87,10 +87,10 @@ Umgebung.
 
 `payments` liest von diesen Variablen nur `PORT`.
 
-Ein so gebautes Binary trägt keine Build-Informationen. `/version` antwortet dann mit
-leeren Feldern und beim Start steht eine Warnung im Log. Das gilt für beide Binaries,
-sie lesen dieselben drei Variablen aus `internal/obs`. Die Werte kommen über
-`-ldflags` hinein:
+Ein ohne `-ldflags` gebautes Binary trägt keine Build-Informationen. `/version`
+antwortet dann mit leeren Feldern und beim Start steht eine Warnung im Log. Das gilt
+für beide Binaries, sie lesen dieselben drei Variablen aus `internal/obs`. So kommen
+die Werte hinein:
 
 ```sh
 LDFLAGS="\

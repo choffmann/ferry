@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -206,4 +207,65 @@ func TestPostgresQueueContract(t *testing.T) {
 		}
 		return newPostgresStore(pool, seed.Location(), now)
 	})
+}
+
+// SKIP LOCKED is what the whole worker design rests on: two claimers must never
+// get the same row. The Fake serialises Claim under its mutex, so this is
+// Postgres-only rather than part of the shared contract.
+func TestConcurrentClaimsGetDisjointBookings(t *testing.T) {
+	pgtest.URL(t)
+	ctx := context.Background()
+
+	pool := migratedPool(t)
+	seed := seedDay()
+	if _, err := Seed(ctx, pool, seed); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	s := newPostgresStore(pool, seed.Location(), fixed(duringSeed()))
+
+	for i := 0; i < 6; i++ {
+		bookOne(t, s, 1)
+	}
+
+	var mu sync.Mutex
+	var first, second []domain.Booking
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		got, err := s.Claim(ctx, 3)
+		mu.Lock()
+		defer mu.Unlock()
+		if err != nil {
+			t.Errorf("first Claim: %v", err)
+			return
+		}
+		first = got
+	}()
+	go func() {
+		defer wg.Done()
+		got, err := s.Claim(ctx, 3)
+		mu.Lock()
+		defer mu.Unlock()
+		if err != nil {
+			t.Errorf("second Claim: %v", err)
+			return
+		}
+		second = got
+	}()
+	wg.Wait()
+
+	seen := map[string]bool{}
+	for _, b := range first {
+		seen[b.ID] = true
+	}
+	for _, b := range second {
+		if seen[b.ID] {
+			t.Errorf("booking %s was claimed by both calls", b.ID)
+		}
+		seen[b.ID] = true
+	}
+	if len(seen) != 6 {
+		t.Errorf("the two claims covered %d distinct bookings, want 6", len(seen))
+	}
 }

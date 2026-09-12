@@ -104,3 +104,25 @@ func TestDatabaseURLDoesNotNeedTheAdminToken(t *testing.T) {
 		t.Error("DatabaseURL without DATABASE_URL returned no error")
 	}
 }
+
+func TestPaymentsDefaultsToPortEightyEighty(t *testing.T) {
+	cfg, err := Payments(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("Payments: %v", err)
+	}
+	if cfg.Port != DefaultPort {
+		t.Errorf("port = %d, want %d", cfg.Port, DefaultPort)
+	}
+}
+
+func TestPaymentsRejectsAPortThatIsNotANumber(t *testing.T) {
+	_, err := Payments(func(k string) string {
+		if k == "PORT" {
+			return "eighty"
+		}
+		return ""
+	})
+	if err == nil {
+		t.Error("a PORT of \"eighty\" was accepted")
+	}
+}

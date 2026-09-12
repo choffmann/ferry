@@ -22,6 +22,10 @@ type Config struct {
 	DatabaseURL string
 }
 
+type PaymentsConfig struct {
+	Port int
+}
+
 // Load takes the lookup function instead of calling os.Getenv, so every case is
 // testable without touching the process environment.
 func Load(getenv func(string) string) (Config, error) {
@@ -35,22 +39,16 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, missing("ADMIN_TOKEN", "the bearer token of the chaos interface")
 	}
 
+	p, err := port(getenv)
+	if err != nil {
+		return Config{}, err
+	}
+
 	c := Config{
-		Port:        DefaultPort,
+		Port:        p,
 		AdminToken:  token,
 		AssetsDir:   DefaultAssetsDir,
 		DatabaseURL: url,
-	}
-
-	if raw := getenv("PORT"); raw != "" {
-		port, err := strconv.Atoi(raw)
-		if err != nil {
-			return Config{}, fmt.Errorf("PORT is not a number: %q", raw)
-		}
-		if port < 1 || port > 65535 {
-			return Config{}, fmt.Errorf("PORT is outside 1..65535: %d", port)
-		}
-		c.Port = port
 	}
 
 	if raw := getenv("ASSETS_DIR"); raw != "" {
@@ -58,6 +56,31 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 
 	return c, nil
+}
+
+// Payments is the whole configuration of the second service. It needs neither
+// a database nor a token.
+func Payments(getenv func(string) string) (PaymentsConfig, error) {
+	p, err := port(getenv)
+	if err != nil {
+		return PaymentsConfig{}, err
+	}
+	return PaymentsConfig{Port: p}, nil
+}
+
+func port(getenv func(string) string) (int, error) {
+	raw := getenv("PORT")
+	if raw == "" {
+		return DefaultPort, nil
+	}
+	p, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("PORT is not a number: %q", raw)
+	}
+	if p < 1 || p > 65535 {
+		return 0, fmt.Errorf("PORT is outside 1..65535: %d", p)
+	}
+	return p, nil
 }
 
 // DatabaseURL stands on its own because migrate and seed need the database and

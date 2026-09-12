@@ -78,6 +78,15 @@ func Run(ctx context.Context, o Options) (Result, error) {
 	}
 }
 
+// Every eighth booking is a group large enough for the payment service to turn
+// it down, so the status failed shows up under load at all.
+func groupSize(draw func(int) int) int {
+	if draw(8) == 0 {
+		return 6 + draw(4)
+	}
+	return 1 + draw(4)
+}
+
 func oneRound(ctx context.Context, o Options, c domain.Connection, record func(int)) {
 	departures, status, err := fetchDepartures(ctx, o, c.ID)
 	if err != nil {
@@ -91,7 +100,7 @@ func oneRound(ctx context.Context, o Options, c domain.Connection, record func(i
 	d := departures[rand.IntN(len(departures))]
 	body, err := json.Marshal(domain.BookingRequest{
 		DepartureID: d.ID,
-		Passengers:  1 + rand.IntN(3),
+		Passengers:  groupSize(rand.IntN),
 	})
 	if err != nil {
 		return

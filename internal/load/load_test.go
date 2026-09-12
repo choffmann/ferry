@@ -115,3 +115,44 @@ func TestRunReadsBookingsBack(t *testing.T) {
 		t.Errorf("no booking was ever read back out of %d bookings", bookings.Load())
 	}
 }
+
+func TestGroupSizeStaysSmallOnAnOrdinaryDraw(t *testing.T) {
+	// draw(8) != 0 picks the small branch, draw(4) then picks within it.
+	got := groupSize(func(n int) int {
+		if n == 8 {
+			return 1
+		}
+		return 2
+	})
+	if got != 3 {
+		t.Errorf("groupSize = %d, want 3", got)
+	}
+}
+
+func TestGroupSizeReachesTheCardLimitOnEveryEighthDraw(t *testing.T) {
+	got := groupSize(func(n int) int {
+		if n == 8 {
+			return 0
+		}
+		return 1
+	})
+	if got != 7 {
+		t.Errorf("groupSize = %d, want 7", got)
+	}
+}
+
+func TestGroupSizeNeverLeavesTheValidRange(t *testing.T) {
+	for i := 0; i < 8; i++ {
+		for j := 0; j < 4; j++ {
+			got := groupSize(func(n int) int {
+				if n == 8 {
+					return i
+				}
+				return j
+			})
+			if got < 1 || got > 9 {
+				t.Fatalf("groupSize = %d, outside 1..9", got)
+			}
+		}
+	}
+}

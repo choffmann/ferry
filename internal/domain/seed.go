@@ -6,10 +6,10 @@ import (
 )
 
 const (
-	SeatsPerDeparture      = 40
-	BoardingClosesBefore   = 15 * time.Minute
-	TimetableZone          = "Europe/Berlin"
-	FareCentsPerPassenger  = 1250
+	SeatsPerDeparture     = 40
+	BoardingClosesBefore  = 15 * time.Minute
+	TimetableZone         = "Europe/Berlin"
+	FareCentsPerPassenger = 1250
 
 	seedDays  = 7
 	firstHour = 6

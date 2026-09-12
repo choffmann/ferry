@@ -15,7 +15,7 @@ func TestDeclineIsNotAnError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"declined","reason":"amount exceeds the card limit"}`))
+		_, _ = w.Write([]byte(`{"status":"declined","reason":"amount exceeds the card limit"}`))
 	}))
 	defer srv.Close()
 
@@ -51,7 +51,7 @@ func TestApprovalRoundTrips(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"approved","reference":"pay-abc123"}`))
+		_, _ = w.Write([]byte(`{"status":"approved","reference":"pay-abc123"}`))
 	}))
 	defer srv.Close()
 
@@ -74,7 +74,7 @@ func TestApprovalRoundTrips(t *testing.T) {
 func TestNonTwoHundredAnswerIsAnError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
-		w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer srv.Close()
 

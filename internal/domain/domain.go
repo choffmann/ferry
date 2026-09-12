@@ -38,14 +38,30 @@ func (d Departure) SeatsAvailable() int {
 
 type BookingStatus string
 
-const StatusConfirmed BookingStatus = "confirmed"
+const (
+	StatusPending   BookingStatus = "pending"
+	StatusConfirmed BookingStatus = "confirmed"
+	StatusFailed    BookingStatus = "failed"
+)
 
 type Booking struct {
-	ID          string        `json:"id"`
-	DepartureID string        `json:"departure_id"`
-	Passengers  int           `json:"passengers"`
-	Status      BookingStatus `json:"status"`
-	CreatedAt   time.Time     `json:"created_at"`
+	ID            string        `json:"id"`
+	DepartureID   string        `json:"departure_id"`
+	Passengers    int           `json:"passengers"`
+	AmountCents   int           `json:"amount_cents"`
+	Status        BookingStatus `json:"status"`
+	PaymentRef    string        `json:"payment_ref,omitempty"`
+	FailureReason string        `json:"failure_reason,omitempty"`
+	CreatedAt     time.Time     `json:"created_at"`
+}
+
+// Settlement is the outcome the worker writes back after the payment service
+// has answered.
+type Settlement struct {
+	BookingID string
+	Status    BookingStatus
+	Reference string
+	Reason    string
 }
 
 type BookingRequest struct {
@@ -92,4 +108,8 @@ func CheckBookable(d Departure, now time.Time, want int, opts BookOptions) error
 		return ErrSoldOut
 	}
 	return nil
+}
+
+func FareCents(passengers int) int {
+	return passengers * FareCentsPerPassenger
 }

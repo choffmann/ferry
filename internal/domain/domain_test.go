@@ -88,3 +88,19 @@ func TestBookingRequestValidate(t *testing.T) {
 		}
 	}
 }
+
+func TestFareCentsScalesWithThePassengers(t *testing.T) {
+	cases := []struct {
+		passengers int
+		want       int
+	}{
+		{1, 1250},
+		{6, 7500},
+		{7, 8750},
+	}
+	for _, c := range cases {
+		if got := FareCents(c.passengers); got != c.want {
+			t.Errorf("FareCents(%d) = %d, want %d", c.passengers, got, c.want)
+		}
+	}
+}

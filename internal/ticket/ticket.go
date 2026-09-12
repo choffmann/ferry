@@ -39,6 +39,10 @@ func (t Ticket) BoardingClosesAt() time.Time {
 	return t.Departure.DepartsAt.Add(-domain.BoardingClosesBefore)
 }
 
+func (t Ticket) Fare() string {
+	return fmt.Sprintf("%d.%02d EUR", t.Booking.AmountCents/100, t.Booking.AmountCents%100)
+}
+
 func (r *Renderer) Render(w io.Writer, t Ticket) error {
 	return r.tmpl.Execute(w, t)
 }

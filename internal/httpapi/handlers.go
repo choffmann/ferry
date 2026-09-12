@@ -103,6 +103,11 @@ func (d Deps) bookingTicket(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusInternalServerError, "booking could not be read")
 		return
 	}
+	if b.Status != domain.StatusConfirmed {
+		writeError(w, r, http.StatusConflict,
+			"boarding pass is available only for a confirmed booking")
+		return
+	}
 
 	dep, err := d.Repo.Departure(r.Context(), b.DepartureID)
 	if err != nil {

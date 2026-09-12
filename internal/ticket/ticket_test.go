@@ -60,6 +60,13 @@ func TestRenderFillsInTheBooking(t *testing.T) {
 	}
 }
 
+func TestFareIsRenderedInEuro(t *testing.T) {
+	tk := Ticket{Booking: domain.Booking{AmountCents: 3750}}
+	if got := tk.Fare(); got != "37.50 EUR" {
+		t.Errorf("Fare() = %q, want \"37.50 EUR\"", got)
+	}
+}
+
 func TestBoardingClosesBeforeTheDeparture(t *testing.T) {
 	tk := sample()
 	want := tk.Departure.DepartsAt.Add(-domain.BoardingClosesBefore)

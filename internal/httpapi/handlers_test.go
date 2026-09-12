@@ -23,16 +23,38 @@ import (
 
 func newTestServer(t *testing.T) (http.Handler, *chaos.MemoryStore) {
 	t.Helper()
+	h, cs, _ := newTestServerWithStore(t)
+	return h, cs
+}
+
+func newTestServerWithStore(t *testing.T) (http.Handler, *chaos.MemoryStore, *store.Fake) {
+	t.Helper()
 	cs := chaos.NewMemoryStore()
+	repo := store.NewFake(time.Now().UTC())
 	h := NewRouter(Deps{
-		Repo:       store.NewFake(time.Now().UTC()),
+		Repo:       repo,
 		Chaos:      cs,
 		AdminToken: "test-token",
 		Logger:     obs.NewLogger(io.Discard),
 		Tickets:    testRenderer(t),
 		Draw:       func() float64 { return 1 },
 	})
-	return h, cs
+	return h, cs, repo
+}
+
+// settle takes the booking through the worker's step without running one, so
+// the ticket cases can ask for a boarding pass at all.
+func settle(t *testing.T, repo *store.Fake, id string) {
+	t.Helper()
+	if _, err := repo.Claim(context.Background(), 10); err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+	err := repo.Settle(context.Background(), domain.Settlement{
+		BookingID: id, Status: domain.StatusConfirmed, Reference: "pay-test",
+	})
+	if err != nil {
+		t.Fatalf("Settle: %v", err)
+	}
 }
 
 // The router gets its own minimal template so that these tests cover the route
@@ -276,7 +298,7 @@ func TestReadyzFollowsTheSwitch(t *testing.T) {
 }
 
 func TestTicketIsServedAsPlainText(t *testing.T) {
-	h, _ := newTestServer(t)
+	h, _, repo := newTestServerWithStore(t)
 	departureID := openDepartureID(t, h)
 
 	rec := do(t, h, http.MethodPost, "/bookings",
@@ -288,6 +310,7 @@ func TestTicketIsServedAsPlainText(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &b); err != nil {
 		t.Fatalf("booking: %v", err)
 	}
+	settle(t, repo, b.ID)
 
 	rec = do(t, h, http.MethodGet, "/bookings/"+b.ID+"/ticket", "")
 	if rec.Code != http.StatusOK {
@@ -299,6 +322,22 @@ func TestTicketIsServedAsPlainText(t *testing.T) {
 	want := "ticket " + b.ID + " Flensburg->Sønderborg\n"
 	if got := rec.Body.String(); got != want {
 		t.Errorf("body = %q, want %q", got, want)
+	}
+}
+
+func TestTicketOfAPendingBookingIsRefused(t *testing.T) {
+	h, _ := newTestServer(t)
+
+	body := `{"departure_id":"` + openDepartureID(t, h) + `","passengers":2}`
+	created := do(t, h, http.MethodPost, "/bookings", body)
+	var b domain.Booking
+	if err := json.Unmarshal(created.Body.Bytes(), &b); err != nil {
+		t.Fatalf("booking: %v", err)
+	}
+
+	rec := do(t, h, http.MethodGet, "/bookings/"+b.ID+"/ticket", "")
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409, body %s", rec.Code, rec.Body)
 	}
 }
 

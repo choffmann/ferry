@@ -1,0 +1,15 @@
+/ferry
+/payments
+/cmd/ferry/ferry
+/cmd/payments/payments
+/bin/
+/dist/
+*.test
+*.out
+
+.direnv/
+result
+result-*
+
+/tickets/
+.env

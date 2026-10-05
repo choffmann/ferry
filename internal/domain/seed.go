@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	SeatsPerDeparture = 40
+	SeatsPerDeparture = 4
 
 	seedDays  = 7
 	firstHour = 6

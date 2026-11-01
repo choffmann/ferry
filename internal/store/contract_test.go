@@ -119,7 +119,7 @@ func runRepositoryContract(t *testing.T, newRepo func(seed time.Time, now func()
 		d := firstDeparture(t, r)
 
 		b, err := r.Book(context.Background(),
-			domain.BookingRequest{DepartureID: d.ID, Passengers: 3}, domain.BookOptions{})
+			domain.BookingRequest{DepartureID: d.ID, Passengers: 2}, domain.BookOptions{})
 		if err != nil {
 			t.Fatalf("Book: %v", err)
 		}
@@ -139,8 +139,8 @@ func runRepositoryContract(t *testing.T, newRepo func(seed time.Time, now func()
 		if err != nil {
 			t.Fatalf("Departure: %v", err)
 		}
-		if after.Booked != 3 {
-			t.Errorf("booked = %d, want 3", after.Booked)
+		if after.Booked != 2 {
+			t.Errorf("booked = %d, want 2", after.Booked)
 		}
 	})
 

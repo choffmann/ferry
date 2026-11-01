@@ -19,6 +19,8 @@ import (
 // timetable has to be seeded from today rather than from a fixed date.
 func newFake() *store.Fake { return store.NewFake(time.Now().UTC()) }
 
+// Overbooking lets a group over the card limit fit even when a team has
+// lowered SeatsPerDeparture below that group size in block 2.
 func bookedFake(t *testing.T, passengers int) (*store.Fake, domain.Booking) {
 	t.Helper()
 	f := newFake()
@@ -28,7 +30,7 @@ func bookedFake(t *testing.T, passengers int) (*store.Fake, domain.Booking) {
 	}
 	b, err := f.Book(context.Background(),
 		domain.BookingRequest{DepartureID: dep[0].ID, Passengers: passengers},
-		domain.BookOptions{})
+		domain.BookOptions{AllowOverbooking: true})
 	if err != nil {
 		t.Fatalf("Book: %v", err)
 	}

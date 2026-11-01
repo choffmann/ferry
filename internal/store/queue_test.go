@@ -10,6 +10,8 @@ import (
 	"github.com/choffmann/ferry/internal/pgtest"
 )
 
+// Overbooking keeps the queue tests independent of SeatsPerDeparture, which
+// teams lower to a handful of seats in block 2.
 func bookOne(t *testing.T, q Repository, passengers int) domain.Booking {
 	t.Helper()
 	dep, err := q.Departures(context.Background(), "FL-SO", time.Time{})
@@ -18,7 +20,7 @@ func bookOne(t *testing.T, q Repository, passengers int) domain.Booking {
 	}
 	b, err := q.Book(context.Background(),
 		domain.BookingRequest{DepartureID: dep[0].ID, Passengers: passengers},
-		domain.BookOptions{})
+		domain.BookOptions{AllowOverbooking: true})
 	if err != nil {
 		t.Fatalf("Book: %v", err)
 	}

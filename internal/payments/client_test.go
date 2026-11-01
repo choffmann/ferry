@@ -135,3 +135,28 @@ func TestUnknownStatusIsAnError(t *testing.T) {
 		t.Errorf("response should be zero value, got %+v", res)
 	}
 }
+
+func TestPingAsksTheLivenessProbe(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/healthz" {
+			t.Errorf("request = %s %s, want GET /healthz", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	if err := payments.NewClient(srv.URL+"/", time.Second).Ping(context.Background()); err != nil {
+		t.Errorf("Ping: %v", err)
+	}
+}
+
+func TestPingFailsOnAnUnhealthyAnswer(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	if err := payments.NewClient(srv.URL, time.Second).Ping(context.Background()); err == nil {
+		t.Error("Ping against a 503 returned no error")
+	}
+}

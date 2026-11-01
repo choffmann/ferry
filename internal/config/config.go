@@ -20,6 +20,9 @@ type Config struct {
 	// directory.
 	AssetsDir   string
 	DatabaseURL string
+	// PaymentsURL is optional here: the API only shows on its start page
+	// whether the payment service answers. Empty means nobody told it where.
+	PaymentsURL string
 }
 
 type PaymentsConfig struct {
@@ -54,6 +57,7 @@ func Load(getenv func(string) string) (Config, error) {
 		AdminToken:  token,
 		AssetsDir:   DefaultAssetsDir,
 		DatabaseURL: url,
+		PaymentsURL: getenv("PAYMENTS_URL"),
 	}
 
 	if raw := getenv("ASSETS_DIR"); raw != "" {

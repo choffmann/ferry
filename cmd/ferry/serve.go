@@ -15,11 +15,15 @@ import (
 	"github.com/choffmann/ferry/internal/domain"
 	"github.com/choffmann/ferry/internal/httpapi"
 	"github.com/choffmann/ferry/internal/obs"
+	"github.com/choffmann/ferry/internal/payments"
 	"github.com/choffmann/ferry/internal/store"
 	"github.com/choffmann/ferry/internal/ticket"
 )
 
-const leakInterval = 6 * time.Second
+const (
+	leakInterval        = 6 * time.Second
+	paymentsPingTimeout = 2 * time.Second
+)
 
 func runServe(ctx context.Context, args []string, getenv func(string) string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
@@ -62,14 +66,18 @@ func runServe(ctx context.Context, args []string, getenv func(string) string, st
 	leaker := chaos.NewLeaker(chaosStore, leakInterval)
 	go leaker.Run(ctx)
 
-	handler := httpapi.NewRouter(httpapi.Deps{
+	deps := httpapi.Deps{
 		Repo:       store.NewPostgresStore(pool, zone),
 		Chaos:      chaosStore,
 		AdminToken: cfg.AdminToken,
 		Logger:     logger,
 		Tickets:    tickets,
 		Ping:       pool.Ping,
-	})
+	}
+	if cfg.PaymentsURL != "" {
+		deps.PaymentsPing = payments.NewClient(cfg.PaymentsURL, paymentsPingTimeout).Ping
+	}
+	handler := httpapi.NewRouter(deps)
 
 	listenOn := *addr
 	if listenOn == "" {

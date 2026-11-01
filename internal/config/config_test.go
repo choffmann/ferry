@@ -31,12 +31,16 @@ func TestLoadFallsBackForPortAndAssets(t *testing.T) {
 	if c.AssetsDir != DefaultAssetsDir {
 		t.Errorf("AssetsDir = %q, want %q", c.AssetsDir, DefaultAssetsDir)
 	}
+	if c.PaymentsURL != "" {
+		t.Errorf("PaymentsURL = %q, want empty", c.PaymentsURL)
+	}
 }
 
 func TestLoadReadsTheEnvironment(t *testing.T) {
 	c, err := Load(env(required(map[string]string{
-		"PORT":       "3000",
-		"ASSETS_DIR": "/srv/ferry/assets",
+		"PORT":         "3000",
+		"ASSETS_DIR":   "/srv/ferry/assets",
+		"PAYMENTS_URL": "http://payments:8081",
 	})))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -52,6 +56,9 @@ func TestLoadReadsTheEnvironment(t *testing.T) {
 	}
 	if c.AssetsDir != "/srv/ferry/assets" {
 		t.Errorf("AssetsDir = %q, want /srv/ferry/assets", c.AssetsDir)
+	}
+	if c.PaymentsURL != "http://payments:8081" {
+		t.Errorf("PaymentsURL = %q, want http://payments:8081", c.PaymentsURL)
 	}
 }
 

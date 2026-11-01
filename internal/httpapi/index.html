@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ferry</title>
+</head>
+<body>
+<h1>ferry</h1>
+
+<h2>Build</h2>
+<table>
+<tr><th align="left">Version</th><td>{{or .Build.Version "unknown"}}</td></tr>
+<tr><th align="left">Commit</th><td>{{or .Build.Commit "unknown"}}</td></tr>
+<tr><th align="left">Build time</th><td>{{or .Build.BuildTime "unknown"}}</td></tr>
+</table>
+
+<h2>Services</h2>
+<table>
+<tr><th align="left">Service</th><th align="left">Status</th></tr>
+{{range .Services}}<tr><td>{{.Name}}</td><td>{{.Status}}</td></tr>
+{{end}}</table>
+</body>
+</html>

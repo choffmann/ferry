@@ -22,6 +22,9 @@ type Deps struct {
 	// Ping reports whether the database answers. A nil Ping means readiness
 	// says nothing about it.
 	Ping func(context.Context) error
+	// PaymentsPing is shown on the start page only. Readiness deliberately
+	// ignores it, so a dead payment service never takes the API out of rotation.
+	PaymentsPing func(context.Context) error
 }
 
 // NewRouter is the single place where routes are registered, so it must not be
@@ -32,6 +35,7 @@ func NewRouter(d Deps) http.Handler {
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", d.index)
 	mux.HandleFunc("GET /connections", d.listConnections)
 	mux.HandleFunc("GET /connections/{id}/departures", d.listDepartures)
 	mux.HandleFunc("POST /bookings", d.createBooking)

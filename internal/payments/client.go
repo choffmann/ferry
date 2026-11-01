@@ -56,3 +56,22 @@ func (c *Client) Charge(ctx context.Context, cr ChargeRequest) (ChargeResponse, 
 	}
 	return out, nil
 }
+
+// Ping asks the liveness probe of the payment service. It says nothing about
+// whether a charge would go through.
+func (c *Client) Ping(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/healthz", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("asking the payment service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("payment service answered %d", resp.StatusCode)
+	}
+	return nil
+}

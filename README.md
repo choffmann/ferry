@@ -81,7 +81,7 @@ Umgebung.
 |---|---|---|
 | `DATABASE_URL` | keine, Pflicht für `serve`, `worker`, `migrate` und `seed` | Verbindungszeichenkette zur Datenbank |
 | `ADMIN_TOKEN` | keine, Pflicht für `serve` | Bearer-Token der Chaos-Schnittstelle |
-| `PAYMENTS_URL` | keine, Pflicht für `worker` | Adresse des Zahlungsdienstes |
+| `PAYMENTS_URL` | keine, Pflicht für `worker`, optional für `serve` | Adresse des Zahlungsdienstes |
 | `PORT` | `8080` | Port, auf dem `ferry serve` oder `payments` lauscht |
 | `ASSETS_DIR` | `./assets` | Verzeichnis mit den Vorlagen |
 

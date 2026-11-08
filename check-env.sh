@@ -27,7 +27,7 @@ check_cmd() {
     fi
 }
 
-printf 'ferry check-env, Stufe Block 7\n\n'
+printf 'ferry check-env, Stufe Block 8\n\n'
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
@@ -52,6 +52,8 @@ check_cmd docker "docker --version" "Docker Engine oder Docker Desktop, siehe Se
 check_cmd just "just --version" "Installation: https://github.com/casey/just#installation"
 check_cmd tofu "tofu version" "Installation: https://opentofu.org/docs/intro/install/"
 check_cmd ansible "ansible --version" "Installation: https://docs.ansible.com/ansible/latest/installation_guide/"
+check_cmd kubectl "kubectl version --client" "Installation: https://kubernetes.io/docs/tasks/tools/"
+check_cmd kind "kind version" "Installation: https://kind.sigs.k8s.io/docs/user/quick-start/"
 
 if command -v docker >/dev/null 2>&1; then
     if docker info >/dev/null 2>&1; then

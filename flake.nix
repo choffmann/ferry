@@ -33,6 +33,8 @@
 
           opentofu
           ansible
+          kubectl
+          kind
 
           git
           curl

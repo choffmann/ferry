@@ -31,6 +31,9 @@
           just
           postgresql
 
+          opentofu
+          ansible
+
           git
           curl
           jq

@@ -27,7 +27,7 @@ check_cmd() {
     fi
 }
 
-printf 'ferry check-env, Stufe Block 5\n\n'
+printf 'ferry check-env, Stufe Block 7\n\n'
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
@@ -50,6 +50,8 @@ check_cmd jq "jq --version" "Unter Debian/Ubuntu: apt install jq, unter macOS: b
 check_cmd go "go version" "Installation: https://go.dev/dl/, mindestens Go 1.26"
 check_cmd docker "docker --version" "Docker Engine oder Docker Desktop, siehe Setup-Doku"
 check_cmd just "just --version" "Installation: https://github.com/casey/just#installation"
+check_cmd tofu "tofu version" "Installation: https://opentofu.org/docs/intro/install/"
+check_cmd ansible "ansible --version" "Installation: https://docs.ansible.com/ansible/latest/installation_guide/"
 
 if command -v docker >/dev/null 2>&1; then
     if docker info >/dev/null 2>&1; then
